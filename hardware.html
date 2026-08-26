@@ -1,0 +1,1418 @@
+<title>Pocket Timelapse Camera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root{
+    --ground:#EDF0F3;
+    --surface:#F8FAFB;
+    --surface-2:#E3E9EE;
+    --ink:#16202B;
+    --ink-soft:#5A6875;
+    --ink-faint:#8494A2;
+    --rule:#CDD6DE;
+    --rule-strong:#AEBBC6;
+    --accent:#A9521C;
+    --accent-wash:#F0E3D9;
+    --good:#2C6B5A;
+    --warn:#8A6110;
+    --bad:#9E3A2C;
+    --shadow:0 1px 2px rgba(22,32,43,.06);
+
+    --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0F161E;
+      --surface:#172029;
+      --surface-2:#1F2A34;
+      --ink:#E2E9EF;
+      --ink-soft:#93A2B1;
+      --ink-faint:#6E7E8D;
+      --rule:#29343F;
+      --rule-strong:#3B4854;
+      --accent:#E09257;
+      --accent-wash:#2A2019;
+      --good:#5CAF97;
+      --warn:#CFA04C;
+      --bad:#DE6F5F;
+      --shadow:0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0F161E;
+    --surface:#172029;
+    --surface-2:#1F2A34;
+    --ink:#E2E9EF;
+    --ink-soft:#93A2B1;
+    --ink-faint:#6E7E8D;
+    --rule:#29343F;
+    --rule-strong:#3B4854;
+    --accent:#E09257;
+    --accent-wash:#2A2019;
+    --good:#5CAF97;
+    --warn:#CFA04C;
+    --bad:#DE6F5F;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:17px;
+    line-height:1.65;
+    margin:0;
+    padding:0 20px 96px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto}
+  .col{max-width:64ch}
+
+  a{color:var(--accent);text-underline-offset:3px;text-decoration-thickness:1px}
+  a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+  /* ---- masthead ---- */
+  .masthead{padding:64px 0 32px;border-bottom:2px solid var(--ink)}
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;font-weight:500;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
+    margin:0 0 20px;
+  }
+  h1{
+    font-family:var(--display);font-weight:700;font-size:clamp(38px,7vw,60px);
+    line-height:1.02;letter-spacing:-.025em;margin:0;text-wrap:balance;
+  }
+  .standfirst{
+    font-size:20px;line-height:1.5;color:var(--ink-soft);
+    margin:20px 0 0;max-width:56ch;
+  }
+  .status{
+    font-family:var(--mono);font-size:12px;color:var(--ink-faint);
+    margin:28px 0 0;letter-spacing:.01em;
+  }
+
+  .specs{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+    gap:1px;background:var(--rule);border:1px solid var(--rule);
+    margin:36px 0 0;
+  }
+  .spec{background:var(--ground);padding:14px 16px}
+  .spec dt{
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px;
+  }
+  .spec dd{
+    font-family:var(--display);font-weight:600;font-size:19px;
+    letter-spacing:-.01em;margin:0;font-variant-numeric:tabular-nums;
+  }
+
+  /* ---- structure ---- */
+  section{padding-top:56px}
+  h2{
+    font-family:var(--display);font-weight:700;font-size:29px;
+    letter-spacing:-.02em;line-height:1.15;margin:0 0 6px;text-wrap:balance;
+  }
+  h3{
+    font-family:var(--display);font-weight:600;font-size:19px;
+    letter-spacing:-.01em;margin:40px 0 10px;text-wrap:balance;
+  }
+  h4{
+    font-family:var(--mono);font-weight:600;font-size:12px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);
+    margin:32px 0 10px;
+  }
+  .marker{
+    font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);display:block;margin:0 0 10px;
+  }
+  p{margin:0 0 16px}
+  ul{margin:0 0 16px;padding-left:1.1em}
+  li{margin:0 0 10px}
+  strong{font-weight:600}
+  code{
+    font-family:var(--mono);font-size:.86em;background:var(--surface-2);
+    padding:.12em .38em;border-radius:3px;
+  }
+  hr{border:0;border-top:1px solid var(--rule);margin:56px 0 0}
+
+  /* ---- tables ---- */
+  .tbl{overflow-x:auto;margin:22px 0 24px;border:1px solid var(--rule);background:var(--surface)}
+  table{border-collapse:collapse;width:100%;min-width:520px}
+  caption{
+    text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);padding:12px 16px 0;
+  }
+  th,td{
+    text-align:left;padding:10px 16px;border-bottom:1px solid var(--rule);
+    font-size:14.5px;line-height:1.45;vertical-align:top;
+  }
+  th{
+    font-family:var(--mono);font-weight:600;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-soft);background:var(--surface-2);
+    border-bottom:1px solid var(--rule-strong);white-space:nowrap;
+  }
+  tbody tr:last-child td{border-bottom:0}
+  td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr.total td{background:var(--surface-2);font-weight:600;border-top:1px solid var(--rule-strong)}
+  .dim{color:var(--ink-faint)}
+
+  /* ---- callouts ---- */
+  .note{
+    background:var(--surface);border:1px solid var(--rule);
+    border-left:3px solid var(--accent);
+    padding:18px 20px;margin:24px 0;font-size:15.5px;
+  }
+  .note p:last-child{margin-bottom:0}
+  .note .lbl{
+    font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);display:block;margin:0 0 8px;
+  }
+  .note.flag{border-left-color:var(--bad)}
+  .note.flag .lbl{color:var(--bad)}
+
+  /* ---- verdict pills ---- */
+  .pill{
+    display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;
+    letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;
+    border:1px solid currentColor;border-radius:2px;white-space:nowrap;
+  }
+  .pill.keep{color:var(--good)}
+  .pill.drop{color:var(--bad)}
+  .pill.dead{color:var(--ink-faint)}
+
+  /* ---- blink codes ---- */
+  .codes{list-style:none;padding:0;margin:22px 0;border:1px solid var(--rule);background:var(--surface)}
+  .codes li{
+    display:flex;gap:14px;align-items:baseline;margin:0;
+    padding:11px 16px;border-bottom:1px solid var(--rule);font-size:15px;
+  }
+  .codes li:last-child{border-bottom:0}
+  .chip{
+    flex:0 0 auto;width:11px;height:11px;border-radius:50%;
+    border:1px solid var(--rule-strong);align-self:center;
+  }
+  .codes .sig{
+    flex:0 0 148px;font-family:var(--mono);font-size:12.5px;color:var(--ink);
+  }
+  .codes .mean{color:var(--ink-soft);font-size:14.5px}
+
+  /* ---- diagram ---- */
+  figure{margin:28px 0;padding:0}
+  .diagram{
+    border:1px solid var(--rule);background:var(--surface);
+    padding:20px;overflow-x:auto;
+  }
+  .diagram svg{display:block;min-width:520px;width:100%;height:auto}
+  figcaption{
+    font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);
+    margin-top:10px;line-height:1.5;
+  }
+  .d-box{fill:var(--surface-2);stroke:var(--rule-strong);stroke-width:1}
+  .d-box-key{fill:var(--accent-wash);stroke:var(--accent);stroke-width:1.5}
+  .d-line{stroke:var(--rule-strong);stroke-width:1.5;fill:none}
+  .d-line-key{stroke:var(--accent);stroke-width:1.5;fill:none}
+  .d-txt{fill:var(--ink);font-family:var(--mono);font-size:11.5px}
+  .d-txt-s{fill:var(--ink-soft);font-family:var(--mono);font-size:10px}
+
+  /* ---- steps ---- */
+  ol.steps{counter-reset:s;list-style:none;padding:0;margin:20px 0}
+  ol.steps li{
+    counter-increment:s;position:relative;padding-left:36px;margin:0 0 14px;
+    font-size:15.5px;
+  }
+  ol.steps li::before{
+    content:counter(s);position:absolute;left:0;top:1px;
+    font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);
+    border:1px solid var(--rule-strong);border-radius:50%;
+    width:22px;height:22px;display:grid;place-items:center;
+  }
+
+  /* ---- phases ---- */
+  .phase{
+    border-top:1px solid var(--rule);padding:18px 0;
+    display:grid;grid-template-columns:96px 1fr;gap:20px;
+  }
+  .phase:last-of-type{border-bottom:1px solid var(--rule)}
+  .phase-n{
+    font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--accent);padding-top:3px;
+  }
+  .phase h4{margin:0 0 6px;font-family:var(--display);font-size:16px;
+    letter-spacing:-.01em;text-transform:none;color:var(--ink);font-weight:600}
+  .phase p{margin:0;font-size:15px;color:var(--ink-soft)}
+
+  footer{
+    margin-top:64px;padding-top:24px;border-top:1px solid var(--rule);
+    font-family:var(--mono);font-size:12px;color:var(--ink-faint);line-height:1.9;
+  }
+  footer a{color:var(--ink-soft)}
+
+  @media (max-width:600px){
+    body{font-size:16px;padding:0 16px 64px}
+    .masthead{padding-top:44px}
+    .phase{grid-template-columns:1fr;gap:6px}
+    .codes li{flex-wrap:wrap}
+    .codes .sig{flex:0 0 auto}
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Hardware decision document</p>
+  <h1>Pocket Timelapse Camera</h1>
+  <p class="standfirst">A sealed, battery-powered box you set down at dusk and collect two days
+  later. Weeks of standby, twelve hours of shooting, 4K with room to crop. No ports — you open it
+  for the card and the cells.</p>
+  <p class="status">Status: component selection &nbsp;·&nbsp; no code written &nbsp;·&nbsp; revised 2026-08-24</p>
+
+  <dl class="specs">
+    <div class="spec"><dt>Sensor</dt><dd>IMX708</dd></div>
+    <div class="spec"><dt>Stills</dt><dd>4608×2592</dd></div>
+    <div class="spec"><dt>Shooting</dt><dd>20–27 h</dd></div>
+    <div class="spec"><dt>Standby</dt><dd>10–30 µA</dd></div>
+    <div class="spec"><dt>Firmware</dt><dd>none</dd></div>
+    <div class="spec"><dt>Parts</dt><dd>€175–190</dd></div>
+  </dl>
+</header>
+
+<section class="col">
+  <span class="marker">Decision 01</span>
+  <h2>4K forces a Linux board, not an MCU</h2>
+  <p>The best camera you can hang off an ESP32-class part is a 5 MP module — OV5640 or Arducam
+  Mega, 2592×1944 — behind a fixed ISP. That is below 4K <em>before</em> you crop, and weak in
+  exactly the light this project cares about. Real 4K-with-crop-room means a 12 MP sensor and a
+  proper ISP, which in practice means a small Linux board.</p>
+  <p><strong>Chosen: Raspberry Pi Zero 2 W with Camera Module 3</strong> — IMX708, 11.9 MP,
+  4608×2592, autofocus. A mature libcamera/picamera2 stack, a 65×30 mm board, and a whole family
+  of swappable CSI cameras behind one connector.</p>
+
+  <div class="note">
+    <span class="lbl">Why, precisely</span>
+    <p>The constraint is not processing power. A single raw frame is ~15 MB, which exceeds an
+    MCU's entire usable RAM, and the demosaic and denoise work needs a hardware ISP that only
+    comes packaged inside things that run Linux. <strong>You're buying an ISP block and enough
+    memory to hold a frame — the CPU is almost incidental.</strong></p>
+    <p>The companion document <em>From Photons to JPEG</em> walks through the full pipeline, and
+    explains why roughly 85 % of the battery goes to keeping Linux idle between frames rather
+    than to photography — a fact that drives several decisions below.</p>
+  </div>
+
+  <h3>Why not something smaller that still runs Linux</h3>
+  <p>The obvious next question, and the answer is that the small low-power Linux SoCs hit
+  <strong>the same wall the ESP32 hit</strong>, one step further up. The Rockchip RV1106
+  (Luckfox Pico) has a genuinely good hardware ISP — HDR, 3A, lens shading, 3D noise reduction,
+  sharpening, all in silicon — but it is specced as a <strong>maximum 5-megapixel ISP</strong>
+  with 128–256 MB of integrated DDR3L. A Luckfox would give you Linux, a real ISP and about half
+  the Pi's draw, while capping you at 5 MP: the same compromise the Arducam Mega forces, reached
+  by a different route and with a toolchain tax on top.</p>
+</section>
+
+<section>
+  <div class="tbl">
+    <table>
+      <caption>Smaller Linux boards considered</caption>
+      <thead><tr><th>Board</th><th>ISP ceiling</th><th>RAM</th><th class="num">Idle</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Luckfox Pico Max / Ultra (RV1106)</td><td><strong>5 MP</strong></td><td>128–256 MB</td><td class="num">~0.5 W</td><td><span class="pill drop">fails 4K</span></td></tr>
+        <tr><td>Milk-V Duo S (SG2000)</td><td>~5 MP</td><td>512 MB</td><td class="num">~0.5 W</td><td><span class="pill drop">fails 4K</span></td></tr>
+        <tr><td>Pi Zero W (BCM2835)</td><td>12 MP</td><td>512 MB</td><td class="num">~120 mA</td><td>same idle, far slower JPEG</td></tr>
+        <tr><td><strong>Pi Zero 2 W (BCM2710A1)</strong></td><td><strong>12 MP</strong></td><td>512 MB</td><td class="num">77–120 mA</td><td><span class="pill keep">chosen</span></td></tr>
+        <tr><td>Radxa Zero 3W, Pi 5</td><td>4K+</td><td>1–8 GB</td><td class="num">1.5–2.5 W</td><td>capable, much thirstier</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p>There's a real gap in the market here: nothing tiny combines a 12 MP-class ISP with
+    sub-watt idle. Everything that clears 5 MP is <em>more</em> power-hungry, not less.
+    <strong>The Pi Zero 2 W is close to the floor for what this project asks</strong> — so the way
+    to spend less energy is to tune the stack, not to shop for a smaller board.</p>
+  </div>
+</section>
+
+<hr>
+
+<section class="col">
+  <span class="marker">Decision 02</span>
+  <h2>The Pi cannot manage its own standby</h2>
+  <p>Worth testing properly, because if it worked it would delete a whole subsystem. It doesn't,
+  for two independent reasons.</p>
+  <ul>
+    <li><strong>A halted Pi Zero 2 W still draws 20–50 mA.</strong> <code>shutdown -h</code> is a
+    low-power state, not off — it keeps enough alive to wake on GPIO3. At ~30 mA through the
+    boost, a 7 Ah pack is flat in <strong>about six days</strong>. Weeks of standby is gone
+    before a single frame is taken.</li>
+    <li><strong>The Pi Zero 2 W has no RTC.</strong> No battery-backed clock, nothing that knows
+    the time while halted, no wake-on-alarm. A halted Pi can be woken by shorting GPIO3 to
+    ground — that's a button, not a schedule. <code>rtcwake</code> has nothing to talk to.</li>
+  </ul>
+  <p>(The Pi 5 <em>does</em> have an RTC and wake-from-halt, but idles around 2.5 W. Hopeless on
+  battery.)</p>
+  <p>What's required is not a microcontroller but two much smaller things: <strong>something
+  that keeps time while the Pi is dead, and something that physically switches the Pi's
+  power.</strong></p>
+</section>
+
+<section>
+  <div class="tbl">
+    <table>
+      <caption>Options considered</caption>
+      <thead><tr><th>Approach</th><th>Standby</th><th>Firmware</th><th>Scheduled wake</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Pi alone</td><td>20–50 mA, no clock</td><td>none</td><td><strong>impossible</strong></td><td><span class="pill dead">fails</span></td></tr>
+        <tr><td><strong>A — Witty Pi 4 L3V7</strong></td><td><strong>~0.3 mA</strong> on battery</td><td>none</td><td>yes, ±2 ppm</td><td><span class="pill keep">chosen</span></td></tr>
+        <tr><td><strong>B — DS3231 + P-FET latch</strong></td><td>5–30 µA</td><td>none</td><td>yes, ±2 ppm</td><td>alternative</td></tr>
+        <tr><td>nRF52840 supervisor</td><td>~30 µA</td><td>a whole Rust project</td><td>yes</td><td><span class="pill drop">rejected</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>Path A is the choice.</strong> Its standby figure — ~0.3 mA on battery, ~1 mA on
+    USB-C — resolves the question that was gating this decision, and resolves it in path A's favour
+    (see Standby, below). Path B remains documented as the alternative for anyone needing
+    <em>months</em> of unattended standby rather than weeks. Neither needs firmware.</p>
+    <p><strong>The nRF52840 supervisor is rejected.</strong> It would have added BLE arming, a
+    fuel gauge readable while asleep, and a hardware watchdog — but it costs an entire Rust
+    firmware sub-project to get there. Since you're standing next to the box when you set it up,
+    BLE saves you only a ~20 s Pi boot. Revisit only if you later want battery state without
+    waking the box.</p>
+
+    <h3>Path A — Witty Pi 4 L3V7</h3>
+    <p><strong>The key distinction from the Witty Pi 4 Mini</strong>, and the reason this variant
+    is the one to buy: the Mini has <strong>no DC/DC converter</strong>, so it needs 5 V in and an
+    external boost must sit in front of it. The <strong>L3V7</strong> — the name is literally
+    "Li 3.7 V" — takes the pack <strong>directly</strong>. Its documented power input is
+    <em>"DC 5V (via USB-C connector) or 3.7V Lithium ion/polymer battery"</em>, and it carries a
+    <strong>DC/DC step-up converter that outputs up to 5 V/3 A</strong> onboard, shipping with an
+    8 cm PH2.0 cable for the battery. So the Pololu U3V50F5 disappears into it rather than sitting
+    alongside.</p>
+    <p>What one 65 × 30 × 7 mm board then does — <strong>exactly the Pi Zero footprint</strong>,
+    10 g:</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <tbody>
+        <tr><td>RTC</td><td>PCF85063A, ±2 ppm, firmware temperature compensation, supercap timekeeping</td></tr>
+        <tr><td>Scheduling</td><td>on/off via vendor scripts — nothing to design, nothing to debug on a hillside</td></tr>
+        <tr><td><strong>Boost</strong></td><td>5 V / 3 A, fed straight from the 3.7 V pack</td></tr>
+        <tr><td>Charger</td><td>1 A — redundant given the hot-swap decision, but harmless as a fallback</td></tr>
+        <tr><td>Measurement</td><td>I²C ADC: input voltage, output voltage, <strong>output current</strong></td></tr>
+        <tr><td>Price</td><td>€25.50 ex VAT, ≈ €32 inc. Swedish VAT</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>The USB-C input is an <em>alternative</em> mains source, not a requirement — and since the
+    design has no external ports, it would only ever be reached with the box open. That does give
+    you in-place charging as a backup if you're ever without the bay charger.</p>
+
+    <div class="note">
+      <span class="lbl">Standby — the question that decided this</span>
+      <p><strong>Standby current: ~0.3 mA on battery</strong>, ~1 mA running from USB-C (irrelevant
+      here — there is no external port). That is a datasheet figure rather than a bench measurement,
+      so phase 3 should still confirm it, but it is decisive: at 0.3 mA the circuit costs about as
+      much as the cells' own self-discharge over the timescales this device is stored for.</p>
+    </div>
+
+    <h3>Path B — DS3231 + P-FET latch</h3>
+    <p><strong>Kept as a documented alternative, not the recommendation.</strong> The dearest path
+    (€45 all-in, once the external boost and fuel gauge it needs are counted) and the most work, in
+    exchange for an advantage that only pays off over <em>months</em> of storage: roughly 10× lower
+    standby, because the P-FET disconnects the boost <em>entirely</em>, so its quiescent draw drops out of the
+    equation instead of becoming the dominant standby load. A handful of through-hole parts and
+    one SOT-23 FET, with prior art in the <code>pi-wake-on-rtc</code> project.</p>
+  </div>
+
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 560 252" role="img" aria-label="Battery feeds a P-FET which feeds a 5 volt boost converter and then the Pi and camera. The P-FET gate is pulled low by any of three sources: the DS3231 alarm output, the button, or the Pi's hold GPIO.">
+        <!-- power path -->
+        <rect class="d-box" x="8" y="36" width="96" height="48" rx="2"/>
+        <text class="d-txt" x="56" y="57" text-anchor="middle">2×18650</text>
+        <text class="d-txt-s" x="56" y="71" text-anchor="middle">7.0 Ah</text>
+
+        <path class="d-line" d="M104 60 H124"/>
+        <path class="d-line" d="M118 55 l6 5 -6 5"/>
+
+        <rect class="d-box-key" x="124" y="36" width="104" height="48" rx="2"/>
+        <text class="d-txt" x="176" y="57" text-anchor="middle">P-FET</text>
+        <text class="d-txt-s" x="176" y="71" text-anchor="middle">high side</text>
+
+        <path class="d-line" d="M228 60 H252"/>
+        <path class="d-line" d="M246 55 l6 5 -6 5"/>
+
+        <rect class="d-box" x="252" y="36" width="96" height="48" rx="2"/>
+        <text class="d-txt" x="300" y="57" text-anchor="middle">boost</text>
+        <text class="d-txt-s" x="300" y="71" text-anchor="middle">5 V</text>
+
+        <path class="d-line" d="M348 60 H372"/>
+        <path class="d-line" d="M366 55 l6 5 -6 5"/>
+
+        <rect class="d-box" x="372" y="36" width="180" height="48" rx="2"/>
+        <text class="d-txt" x="462" y="57" text-anchor="middle">Pi Zero 2 W</text>
+        <text class="d-txt-s" x="462" y="71" text-anchor="middle">+ Camera Module 3</text>
+
+        <!-- gate -->
+        <path class="d-line-key" d="M176 84 V132"/>
+        <text class="d-txt-s" x="184" y="106">gate</text>
+
+        <rect class="d-box-key" x="112" y="132" width="128" height="40" rx="2"/>
+        <text class="d-txt" x="176" y="150" text-anchor="middle">pull gate low</text>
+        <text class="d-txt-s" x="176" y="164" text-anchor="middle">100k pull-up = off</text>
+
+        <!-- bus -->
+        <path class="d-line" d="M240 152 H300"/>
+        <path class="d-line" d="M300 124 V220"/>
+        <path class="d-line" d="M300 124 H340"/>
+        <path class="d-line" d="M300 172 H340"/>
+        <path class="d-line" d="M300 220 H340"/>
+
+        <rect class="d-box" x="340" y="106" width="212" height="36" rx="2"/>
+        <text class="d-txt" x="352" y="129">DS3231 alarm · INT</text>
+
+        <rect class="d-box" x="340" y="154" width="212" height="36" rx="2"/>
+        <text class="d-txt" x="352" y="177">button</text>
+
+        <rect class="d-box" x="340" y="202" width="212" height="36" rx="2"/>
+        <text class="d-txt" x="352" y="225">Pi GPIO · hold me on</text>
+      </svg>
+    </div>
+    <figcaption>Path B. Any of the three right-hand sources can pull the gate low; the Pi's own
+    GPIO is what holds it there once booted.</figcaption>
+  </figure>
+
+  <div class="col">
+    <ol class="steps">
+      <li>Pi writes an alarm time to the DS3231 over I²C, then halts.</li>
+      <li>At alarm time <code>INT</code> goes low, the P-FET conducts, the Pi boots. The alarm
+      flag <strong>latches low until cleared over I²C</strong>, so it holds power across the
+      whole boot with no timing circuit.</li>
+      <li>The booted Pi drives its hold-GPIO, then clears the alarm flag.</li>
+      <li>At the end of shutdown <code>dtoverlay=gpio-poweroff</code> releases that GPIO, the
+      latch drops, and power is gone.</li>
+    </ol>
+
+    <div class="note flag">
+      <span class="lbl">Two things that bite people</span>
+      <p><strong>BBSQW must be set to 1.</strong> By default the DS3231 disables its
+      <code>INT/SQW</code> output when running on backup power — the alarm pin is dead exactly
+      when you need it to fire. This is the single most common failure in this circuit.</p>
+      <p><strong>Nothing watchdogs the failure path.</strong> If the Pi hangs mid-session it
+      never releases the latch and the pack drains to the BMS cutoff — costing a charge cycle,
+      not hardware. Mitigate with the Pi's hardware watchdog, which reboots a hung Pi into a
+      state that can decide to halt properly. Path A has the same exposure, and can be given a
+      scheduled hard cut-off as a backstop.</p>
+    </div>
+
+    <h3>Choosing between them</h3>
+    <p>Both paths present the Pi with the same interface — an I²C clock to write an alarm to, and
+    a GPIO handshake at shutdown — so <strong>the capture software is identical either way</strong>
+    and the choice is genuinely deferrable. Start on path A for a working device sooner; move to
+    path B if the measured boost quiescent dominates standby. Buying both costs about €49 and
+    keeps the decision open.</p>
+    <p><strong>This is now decided: path A.</strong> It is €15 cheaper all-in, one 65×30 mm board
+    instead of three parts, gives voltage <em>and</em> current for free, and handles low-voltage
+    shutdown and recovery in firmware. Its ~0.3 mA standby costs about the same as the cells' own
+    self-discharge over a month, so path B's 10× advantage buys nothing at the timescale this device
+    is stored for.</p>
+    <p><strong>Build path B only if the requirement changes to months of unattended standby</strong>
+    — a box left out through a season, or solar operation where the pack must survive a long dark
+    spell. The circuit and its <code>BBSQW</code> trap are documented above so that stays a live
+    option.</p>
+  </div>
+</section>
+
+<hr>
+
+<section class="col">
+  <span class="marker">Decision 03</span>
+  <h2>Configuration happens through the Pi's own web page</h2>
+  <p>Button, Pi boots in about twenty seconds, raises its own WiFi access point for five minutes.
+  Your phone browser gets a full settings page — interval, duration, start time, exposure caps, a
+  live preview frame — you confirm, the Pi writes the wake alarm and halts.</p>
+  <p>This works identically on iOS and Android, which BLE-from-a-web-page does not:
+  <strong>iOS has no Web Bluetooth</strong>, so anything BLE-facing would need a native app or a
+  third-party browser.</p>
+</section>
+
+<hr>
+
+<section class="col">
+  <span class="marker">Decision 04</span>
+  <h2>No display inside the box</h2>
+  <p>A display sealed inside an opaque box needs a <strong>second window</strong> to be useful,
+  and every window is another seal to fail, another surface to fog, and a hole to align a PCB
+  behind. That's real enclosure complexity bought for information the web page already presents
+  better — and it fights the target form factor of a tight box with waterproof buttons and one
+  hole for the lens.</p>
+  <p><strong>Chosen instead: an illuminated waterproof pushbutton</strong> — 16 mm
+  vandal-resistant, IP65, LED ring. One hole serving as both input and status indicator.</p>
+</section>
+
+<section>
+  <ul class="codes">
+    <li><span class="chip" style="background:transparent"></span><span class="sig">dark</span><span class="mean">asleep, waiting for its alarm</span></li>
+    <li><span class="chip" style="background:var(--ink-faint)"></span><span class="sig">solid, dim</span><span class="mean">booting</span></li>
+    <li><span class="chip" style="background:var(--good)"></span><span class="sig">slow pulse</span><span class="mean">AP up, waiting for configuration</span></li>
+    <li><span class="chip" style="background:var(--accent)"></span><span class="sig">flash per frame</span><span class="mean">shooting — shows both liveness and the interval</span></li>
+    <li><span class="chip" style="background:var(--warn)"></span><span class="sig">amber</span><span class="mean">battery low</span></li>
+    <li><span class="chip" style="background:var(--bad)"></span><span class="sig">red</span><span class="mean">error, card full</span></li>
+  </ul>
+
+  <div class="col">
+    <p>The per-frame flash is the one worth having in the field — it tells you the box is alive
+    and what interval it's running without opening anything.</p>
+    <p>Two caveats. The LED can only be driven while the Pi is awake, so <em>armed and
+    sleeping</em> reads as dark — correct behaviour, and better for stealth. And
+    <strong>mount the button on a different face from the lens</strong>, or the flash will bounce
+    off the inside of the window at night.</p>
+    <p>One button is sufficient if actions are separated by press duration: short for status,
+    long to raise the AP, very long to abort and halt. A second button is a couple of euros if an
+    unambiguous abort feels better in the field.</p>
+    <p><strong>No OLED anywhere, not even on the bench.</strong> A display would require writing
+    display code before it could help you debug, which is backwards, and it shows less than a
+    terminal does. Bench visibility comes over the wire instead — see <em>Bench debugging</em>
+    below.</p>
+  </div>
+</section>
+
+<hr>
+
+<section>
+  <div class="col"><h2>Bill of materials</h2></div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th class="num">#</th><th>Part</th><th>Role</th><th class="num">≈ EUR</th></tr></thead>
+      <tbody>
+        <tr><td class="num dim">1</td><td>Raspberry Pi Zero 2 W</td><td>capture computer</td><td class="num">20</td></tr>
+        <tr><td class="num dim">2</td><td>Raspberry Pi Camera Module 3 (75° D)</td><td>IMX708, 11.9 MP, autofocus</td><td class="num">30</td></tr>
+        <tr><td class="num dim">3</td><td>22-pin → 15-pin FFC cable</td><td>the Zero's narrow connector — easy to forget</td><td class="num">5</td></tr>
+        <tr><td class="num dim">4</td><td>128 GB A2 microSD</td><td>OS and frames</td><td class="num">15</td></tr>
+        <tr><td class="num dim">5</td><td>2 × <strong>protected</strong> 18650 + quality hot-swap holder</td><td>7.0 Ah / 25.9 Wh</td><td class="num">22</td></tr>
+        <tr><td class="num dim">6</td><td>16 mm IP65 illuminated pushbutton</td><td>input and status in one hole</td><td class="num">10</td></tr>
+        <tr><td class="num dim">7</td><td>IP65 box, ≈120×80×55 mm — or 3D printed</td><td>enclosure, designed to open</td><td class="num">18</td></tr>
+        <tr><td class="num dim">8</td><td>37 mm screw-in UV filter + O-ring</td><td>optical window</td><td class="num">12</td></tr>
+        <tr><td class="num dim">9</td><td>PTFE vent plug + silica gel</td><td>condensation control</td><td class="num">8</td></tr>
+        <tr><td class="num dim">10</td><td>1/4"-20 threaded inserts</td><td>tripod or clamp mount</td><td class="num">5</td></tr>
+        <tr class="total"><td></td><td>Subtotal</td><td></td><td class="num">≈ 145</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <caption>Each path carries its own power control, boost and battery measurement</caption>
+      <thead><tr><th>Path</th><th>Power control + boost</th><th>Battery measurement</th><th class="num">Path</th><th class="num">Grand total</th></tr></thead>
+      <tbody>
+        <tr><td><strong>A</strong></td><td><strong>Witty Pi 4 L3V7</strong> — RTC, power control, <strong>onboard 5 V/3 A boost</strong>, charger, 65×30×7 mm</td><td><strong>included</strong> (I²C ADC)</td><td class="num">€30</td><td class="num"><strong>≈ €175</strong></td></tr>
+        <tr><td><strong>A′</strong></td><td>Witty Pi 4 Mini (€22) + Pololu U3V50F5 (€18) — fallback if the L3V7 is unavailable</td><td><strong>included</strong> (I²C ADC)</td><td class="num">€40</td><td class="num">≈ €185</td></tr>
+        <tr><td><strong>B</strong></td><td>DS3231 + P-FET, passives, protoboard (€15) + Pololu U3V50F5 (€18)</td><td>MAX17048 — €12</td><td class="num">€45</td><td class="num"><strong>≈ €190</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>The 3.7 V → 5 V boost is no longer a shared item</strong> — path A's board has one
+    onboard, path B needs an external one. <strong>Path A is now both the cheapest and by far the
+    simplest</strong>: one 65×30 mm board carrying the RTC, the power switching, the boost, a
+    charger and the voltage/current ADC, against three separate parts on path B. Its one remaining
+    unknown is standby current, which is the same measurement that already gates this decision.</p>
+    <p>Buying path A and path B together is ~€75 and keeps the decision open. Buying A′ as well is
+    pointless unless the L3V7 turns out to be unobtainable.</p>
+    <p>The enclosure is priced as a commercial IP65 box to keep the build cost holistic;
+    <strong>a 3D printed case is the likely route</strong>, in which case that €18 becomes filament
+    and the design constraints still apply.</p>
+
+    <h3>Accessories — outside the box, reusable</h3>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Item</th><th>Role</th><th class="num">≈ EUR</th></tr></thead>
+      <tbody>
+        <tr><td>4-bay 18650 charger (Nitecore / XTAR)</td><td>charges cells at ~2 A each, ~2 h</td><td class="num">25</td></tr>
+        <tr><td>Spare set of 2 protected 18650s</td><td>a second set is a second full session</td><td class="num">22</td></tr>
+        <tr><td>USB power meter</td><td><strong>not optional</strong> — you cannot size a battery from datasheets</td><td class="num">15</td></tr>
+        <tr><td>USB-UART adapter (CP2102/FTDI), <strong>optional</strong></td><td>early boot and kernel-panic visibility</td><td class="num">5</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <h3>Bench debugging — over the wire, not a screen</h3>
+    <p>Through phases 1–4 the device sits on a bench next to a laptop, so debugging goes over a
+    wire. No display is needed, and adding one would mean writing display code before it could
+    help.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Approach</th><th class="num">Cost</th><th>Shows you</th></tr></thead>
+      <tbody>
+        <tr><td><strong>SSH over WiFi</strong></td><td class="num">free</td><td>everything — <code>journalctl -f</code>, a real shell</td></tr>
+        <tr><td><strong>USB gadget (<code>g_ether</code>)</strong></td><td class="num">free, one cable</td><td>the same, with no WiFi dependency at all</td></tr>
+        <tr><td>USB-UART on GPIO 14/15</td><td class="num">€5</td><td><strong>early boot and kernel panics</strong>, which SSH cannot reach</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>USB gadget mode is the neat one: the Zero 2 W's micro-USB OTG port supports it, so
+    <code>dtoverlay=dwc2</code> in <code>config.txt</code> plus <code>modules-load=dwc2,g_ether</code>
+    in <code>cmdline.txt</code> gives a network interface over a single cable to the laptop —
+    nothing to buy, nothing to solder.</p>
+
+    <div class="note flag">
+      <span class="lbl">Trap worth remembering</span>
+      <p><strong>The OTG port can back-power the Pi</strong>, so USB debugging and power measurement
+      are mutually exclusive. Any current reading taken with a laptop cable attached is meaningless.
+      Use SSH-over-WiFi whenever the meter is connected, and USB gadget when it isn't.</p>
+    </div>
+
+    <p>The UART adapter is genuinely optional — a stock Raspberry Pi OS image rarely needs
+    early-boot visibility — but at €5 it is strictly more useful than a display would have
+    been.</p>
+
+    <h3>Power in — hot-swap cells, charged externally</h3>
+    <p><strong>There is no charger on the board, deliberately.</strong> The box must be opened to
+    retrieve the SD card anyway, so cells come out and charge in an external bay charger. That
+    deletes the on-board charging circuit, deletes the load-sharing problem, and charges
+    <em>faster</em> — a bay charger runs ~2 A per cell in about 2 h, against 8–9 h for a 1 A
+    on-board charger feeding 7 Ah. (For the record: the TP4056 that used to sit in this slot is a
+    <strong>1 A</strong> part. There is no 2 A variant of that chip, only lower settings via
+    <code>RPROG</code>.)</p>
+    <p>The real gain is that <strong>spare cells convert directly into runtime.</strong> A second
+    matched set in your bag is a second full session with no waiting.</p>
+    <p><strong>No live swapping is needed.</strong> Power down, swap, power up — the RTC keeps time
+    and schedule on its own backup (supercap on the Witty Pi, CR2032 on the DS3231), so removing
+    every cell doesn't lose the wake alarm.</p>
+
+    <h4>Four things this makes your responsibility</h4>
+    <ul>
+      <li><strong>Protected cells are now mandatory.</strong> Pack protection previously came from
+      the DW01 on the charge module. Without it, use protected button-top cells (~69–70 mm, so size
+      holders for the extra ~4 mm) or fit a small 1S BMS. Loose cells handled, pocketed and dropped
+      in bags are exactly the case protection exists for.</li>
+      <li><strong>Swap as a matched set, never one cell.</strong> Cells in parallel equalise through
+      each other, and inserting a full cell beside a depleted one drives a large current directly
+      between them, limited only by their internal resistance. Keep sets of the same chemistry,
+      capacity and age, label them, and rotate them together.</li>
+      <li><strong>The holder is now reliability-critical</strong> — it is the only path between the
+      cells and the Pi. Buy a good one with proper spring contacts and retention, or design
+      retention into the printed sled. Cheap holders lose contact under vibration, and a dropout
+      ends the session.</li>
+      <li><strong>Refresh the desiccant at each swap</strong>, since every opening admits humid
+      air.</li>
+    </ul>
+
+    <h4>How many cells?</h4>
+    <p>Electrically there's no meaningful limit. Cells sit in parallel at 1S, so adding them raises
+    capacity and lowers internal resistance without changing voltage, and the boost's input current
+    is unaffected. The limits are physical and procedural.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <caption>Protected cells (~80 mm holders) against a 115 × 75 × 50 mm interior</caption>
+      <thead><tr><th class="num">Cells</th><th>Holder footprint</th><th>Fits?</th></tr></thead>
+      <tbody>
+        <tr><td class="num">2</td><td>~76 × 40 mm</td><td>comfortably — <strong>the design point</strong></td></tr>
+        <tr><td class="num">3 in a row</td><td>~76 × 60 mm</td><td>yes, snug</td></tr>
+        <tr><td class="num">4 in a row</td><td>~76 × 80 mm</td><td><strong>no</strong> — exceeds the 75 mm width</td></tr>
+        <tr><td class="num">4 as 2×2</td><td>~76 × 40 × 42 mm</td><td>footprint fits, but 42 of 50 mm height leaves nothing for the Pi</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>Three is the practical ceiling in this box</strong>; four needs a larger or taller
+    one — which a printed case makes easy to arrange if you want it.</p>
+    <div class="note">
+      <span class="lbl">Systems interaction</span>
+      <p><strong>More battery re-opens the storage question.</strong> At 4 cells (14 Ah) a 2 s
+      interval runs 45 h and writes 178 GB at q80 — over a 128 GB card. The adaptive quality rule
+      degrades gracefully rather than failing mid-session, but if you commit to 3–4 cells, revisit
+      the card size deliberately.</p>
+    </div>
+
+    <h3>Battery measurement — and why it can't live on the Pi</h3>
+    <p><strong>The Raspberry Pi has no ADC.</strong> Not a limited one — none at all, on any model.
+    There is no analog input on the SoC, so a voltage divider cannot be read from the board. This
+    isn't a case of the software being messy; the hardware simply isn't there. Any battery reading
+    needs an external chip.</p>
+    <p>And one is genuinely needed — this is not a development-only part. The web UI reports
+    charge, and more importantly the device has to answer <em>"is there enough left to
+    finish a six-hour session?"</em> before you walk away from it.</p>
+    <p><strong>On path A it comes free.</strong> The Witty Pi's MCU has an ADC and exposes readings
+    over I²C at address <code>0x08</code>.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Register</th><th>Reading</th></tr></thead>
+      <tbody>
+        <tr><td><code>0x01</code>–<code>0x02</code></td><td>input voltage</td></tr>
+        <tr><td><code>0x03</code>–<code>0x04</code></td><td>output voltage</td></tr>
+        <tr><td><code>0x05</code>–<code>0x06</code></td><td><strong>output current</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>That is strictly more than a fuel gauge gives you. Output current in particular suits this
+    project better than a percentage would: the real question is hours-to-completion, and
+    <code>remaining Wh ÷ measured W</code> answers it directly once phase 0 has characterised the
+    draw.</p>
+    <p><strong>On path B you need to add something</strong>, because the DS3231 has no ADC either:</p>
+    <ul>
+      <li><strong>MAX17048 (~€12)</strong> — worth its price for two specific reasons. The Li-ion
+      discharge curve is flat, roughly 3.6–3.8 V across most of the usable capacity, so voltage
+      alone is a poor charge estimate and the chip runs a battery model to compensate. It also
+      stays on the pack at 3 µA and keeps modelling while the Pi is off, so a freshly woken box
+      knows its state immediately instead of re-converging.</li>
+      <li><strong>ADS1115 + resistor divider (~€4)</strong> — raw voltage, and you write the
+      discharge curve yourself. Perfectly adequate given you'll know your average draw from
+      phase 0.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="col"><h3>Camera swap options</h3>
+  <p>All share the CSI connector, so this is a genuine upgrade path rather than a rebuild.</p></div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Module</th><th>Sensor</th><th>Why</th><th>Caveat</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Cam Module 3</strong></td><td>IMX708, 1/2.43", 11.9 MP</td><td>the default; autofocus, good outdoor dynamic range</td><td class="dim">—</td></tr>
+        <tr><td>Cam Module 3 Wide</td><td>IMX708, 120° D</td><td>vistas, big-sky sunsets</td><td>more distortion, softer corners</td></tr>
+        <tr><td>HQ Camera IMX477 + CS lens</td><td>1/2.3", 12.3 MP</td><td>best quality; fixed manual focus and aperture is an <em>advantage</em> for timelapse</td><td>~38 mm cube plus lens — breaks "pocketable"</td></tr>
+        <tr><td>Arducam Owlsight OV64A40</td><td>1/1.32", 64 MP</td><td>biggest sensor in a small module</td><td><strong>verify first</strong> — the Zero 2 W's 512 MB RAM reportedly can't reach full resolution</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p>Buy the standard Module 3 first. The swap path exists; don't spend it on day one.</p>
+    <div class="note">
+      <span class="lbl">Considering a bigger sensor?</span>
+      <p>The companion document <em>Sensor options — and why the small one is enough</em> surveys
+      the IMX range, explains why Sony sensors carry no ISP and where that leaves the options, and
+      makes the case that a locked-off timelapse recovers much of a large sensor's advantage
+      through exposure time alone.</p>
+      <p>Short version: the <strong>IMX477 HQ Camera is the one sensible upgrade</strong>, and its
+      value is the <strong>C/CS lens mount</strong> rather than the +0.3 stops of sensor area.
+      Everything larger leaves the Raspberry Pi ecosystem — above roughly 1/1.3" you are into
+      USB 3.0 or Jetson territory, where idle power goes from 0.4 W to several watts and takes the
+      battery budget with it.</p>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<section>
+  <div class="col"><h2>Power budget</h2></div>
+
+  <div class="tbl">
+    <table>
+      <caption>Shooting</caption>
+      <tbody>
+        <tr><td>Pi Zero 2 W idle, stock headless</td><td class="num">~115–144 mA = 0.58–0.72 W</td></tr>
+        <tr><td>Pi Zero 2 W idle, <strong>tuned</strong></td><td class="num"><strong>~77 mA = 0.39 W</strong></td></tr>
+        <tr><td>Pi + Camera Module 3, capture loop, peak</td><td class="num">~250–300 mA = 1.25–1.50 W</td></tr>
+        <tr><td><strong>Design point, time-averaged, untuned</strong></td><td class="num"><strong>1.1 W at the 5 V rail</strong></td></tr>
+        <tr><td>12 h session</td><td class="num">13.2 Wh at the rail</td></tr>
+        <tr><td>÷ 88 % boost efficiency</td><td class="num">15.0 Wh from the cells</td></tr>
+        <tr><td>at 3.7 V nominal</td><td class="num">4.05 Ah</td></tr>
+        <tr class="total"><td>+25 % derate for cold, ageing, not running flat</td><td class="num">≈ 5.4 Ah needed</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>Two 3500 mAh cells give <strong>7.0 Ah / 25.9 Wh</strong> — roughly <strong>20 h at 20 °C
+    and ~14 h at 0 °C</strong> on the untuned design point. Comfortable against the 12 h target,
+    which you want because lithium loses real capacity in the cold. Never charge the pack below
+    0 °C; if it comes home frozen, let it warm first.</p>
+    <p><strong>Tuned, that becomes ~27 h at 20 °C and ~19 h at 0 °C.</strong> Since idle dominates,
+    a 33 % cut to the idle floor is about a 28 % cut to total draw — which buys back the entire
+    cold-weather derate for free. Read the other way, tuning is what would let a <em>smaller</em>
+    pack still clear 12 h if you later want the box slimmer.</p>
+
+    <h3>Active — where the energy goes during a session</h3>
+    <p>The figures above are a single time-averaged number. Decomposing one capture cycle at
+    interval <strong>T</strong> is more useful, because it shows which lever is worth pulling.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <caption>Per-cycle components</caption>
+      <thead><tr><th>Component</th><th>What it is</th><th class="num">Estimate</th></tr></thead>
+      <tbody>
+        <tr><td><code>P_base</code></td><td>tuned Pi idle, camera not initialised</td><td class="num"><strong>0.39 W</strong></td></tr>
+        <tr><td><code>P_cam</code></td><td>camera pipeline <strong>streaming</strong></td><td class="num"><strong>~0.5 W</strong> — unknown</td></tr>
+        <tr><td><code>E_readout</code></td><td>sensor readout + ISP, one frame</td><td class="num">~0.1 J</td></tr>
+        <tr><td><code>E_encode</code></td><td>software JPEG at 12 MP</td><td class="num">~0.5 J</td></tr>
+        <tr><td><code>E_write</code></td><td>4 MB to SD + fsync</td><td class="num">~0.05 J</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>The item that's easy to miss: a naive picamera2 loop leaves the sensor streaming the
+    whole time.</strong> You <code>start()</code> once and call <code>capture_file()</code> in a
+    loop, and between frames the camera keeps running — roughly 0.5 W burning continuously,
+    comparable to the entire tuned idle floor. The session floor is therefore not
+    <code>P_base</code> but <code>P_base + P_cam</code>, and the actual photography is a rounding
+    error beside it.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <caption>At a 5 s interval, camera left streaming</caption>
+      <thead><tr><th>Line item</th><th class="num">Energy per frame</th><th class="num">Share</th></tr></thead>
+      <tbody>
+        <tr><td>Camera streaming</td><td class="num">2.50 J</td><td class="num"><strong>48 %</strong></td></tr>
+        <tr><td>Pi base idle</td><td class="num">1.95 J</td><td class="num">37 %</td></tr>
+        <tr><td>JPEG encode</td><td class="num">0.50 J</td><td class="num">10 %</td></tr>
+        <tr><td>Readout + SD write</td><td class="num">0.15 J</td><td class="num">3 %</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <h4>Stopping the camera between frames</h4>
+    <p>Because exposure is locked by design, restarting costs no AE/AWB convergence — the usual
+    objection to <code>stop()</code>/<code>start()</code> around each capture doesn't apply here.
+    Modelling ~1 s of camera-on time per frame:</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th class="num">Interval</th><th class="num">Streaming</th><th class="num">Stopped</th><th class="num">Saving</th><th class="num">Runtime on 25.9 Wh</th></tr></thead>
+      <tbody>
+        <tr><td class="num">2 s</td><td class="num">1.27 W</td><td class="num">1.02 W</td><td class="num">20 %</td><td class="num">18 h → 22 h</td></tr>
+        <tr><td class="num">5 s</td><td class="num">1.04 W</td><td class="num">0.64 W</td><td class="num"><strong>38 %</strong></td><td class="num">22 h → <strong>36 h</strong></td></tr>
+        <tr><td class="num">15 s</td><td class="num">0.94 W</td><td class="num">0.47 W</td><td class="num"><strong>50 %</strong></td><td class="num">24 h → <strong>48 h</strong></td></tr>
+        <tr><td class="num">30 s</td><td class="num">0.92 W</td><td class="num">0.43 W</td><td class="num"><strong>53 %</strong></td><td class="num">25 h → <strong>53 h</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>This is a bigger lever than every <code>config.txt</code> change combined, and it's
+    pure software.</strong> The saving scales with interval because streaming cost is proportional
+    to <code>T</code> while capture work is fixed — the longer the wait between frames, the more of
+    what you're paying for is a sensor doing nothing.</p>
+
+    <div class="note flag">
+      <span class="lbl">Every figure here is provisional</span>
+      <p><code>P_cam</code> is inferred from a "Pi Zero W + Camera Module 3 never exceeds 300 mA"
+      measurement minus idle, not measured directly. At 0.25 W the savings roughly halve; at 0.7 W
+      they grow. The whole table swings on that one number — calibrate before designing around
+      it.</p>
+    </div>
+
+    <h4>One counterintuitive tuning note</h4>
+    <p>For the encode phase specifically, use the <strong><code>performance</code> governor, not
+    <code>powersave</code></strong>. Race-to-idle wins on a Pi: static power is paid for the whole
+    duration, so finishing an encode in 0.4 s at full clock generally costs less total energy than
+    0.9 s at reduced clock. The governor advice that helps during idle is backwards during a
+    capture burst.</p>
+
+    <h4>Calibration protocol — about two hours of bench work</h4>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th class="num">#</th><th>Measure</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td class="num dim">1</td><td><code>P_base</code></td><td>Tuned, headless, camera never initialised; 5 min average</td></tr>
+        <tr><td class="num dim">2</td><td><code>P_cam</code></td><td>Same, with picamera2 started and streaming but <em>not</em> capturing. Subtract #1</td></tr>
+        <tr><td class="num dim">3</td><td><code>E_capture</code></td><td>100 captures at a long interval; total Wh minus baseline, ÷ 100</td></tr>
+        <tr><td class="num dim">4</td><td><code>t_encode</code></td><td>Time <code>capture_file()</code> against <code>capture_array()</code> to separate encode from readout</td></tr>
+        <tr><td class="num dim">5</td><td><code>t_startup</code></td><td><code>start()</code> → first valid frame</td></tr>
+        <tr><td class="num dim">6</td><td>Whole session</td><td>1 h at the real interval, both modes, back to back</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>Six numbers, and the model above becomes predictive instead of indicative.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <caption>Standby</caption>
+      <thead><tr><th></th><th>Path A — L3V7</th><th>Path B — latch</th></tr></thead>
+      <tbody>
+        <tr><td>Whole board, RTC + boost + control</td><td class="num"><strong>~0.3 mA</strong> (datasheet)</td><td class="num dim">—</td></tr>
+        <tr><td>RTC on backup, <code>BBSQW</code> set</td><td class="num dim">—</td><td class="num">1–3 µA</td></tr>
+        <tr><td>Boost converter</td><td class="num dim">included above</td><td class="num">0 — disconnected</td></tr>
+        <tr><td>P-FET off + gate network</td><td class="num dim">—</td><td class="num">&lt;1 µA</td></tr>
+        <tr><td>Pack protection IC</td><td class="num">~5 µA</td><td class="num">~5 µA</td></tr>
+        <tr><td>MAX17048 hibernate</td><td class="num dim">— onboard</td><td class="num">3 µA</td></tr>
+        <tr class="total"><td>Total</td><td class="num">≈ 0.3 mA</td><td class="num">≈ 10–30 µA</td></tr>
+        <tr class="total"><td>7 Ah pack, in theory</td><td class="num">2.7 years</td><td class="num">&gt;20 years</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>Theoretical life is the wrong comparison, though, because <strong>neither is limited by the
+    circuit — both are limited by the cells.</strong> Set the two against Li-ion's own ~2.5 %/month
+    self-discharge:</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th class="num">Stored for</th><th class="num">Path A drain</th><th class="num">Path B drain</th><th class="num">Self-discharge</th><th class="num">Pack remaining, A vs B</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1 week</td><td class="num">0.7 %</td><td class="num">0.07 %</td><td class="num">0.6 %</td><td class="num">98.7 % vs 99.3 %</td></tr>
+        <tr><td class="num"><strong>1 month</strong></td><td class="num"><strong>3.1 %</strong></td><td class="num"><strong>0.3 %</strong></td><td class="num"><strong>2.5 %</strong></td><td class="num"><strong>94 % vs 97 %</strong></td></tr>
+        <tr><td class="num">6 months</td><td class="num">18.5 %</td><td class="num">1.9 %</td><td class="num">~14 %</td><td class="num">68 % vs 84 %</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>At the "weeks of standby" the requirement asks for, path A's circuit costs about the
+    same as the cells leaking on their own.</strong> Three percentage points after a month is
+    roughly 40 minutes of runtime — irrelevant. Path B's 10× advantage only becomes material over
+    <em>months</em> of unattended storage, and a pack would be topped up before a trip anyway.</p>
+    <p>That is what settles the path decision: <strong>path A is cheaper, smaller and simpler, and
+    its only disadvantage doesn't bite at the timescale this device is actually used over.</strong>
+    Either way, contrast both with the halted-Pi figure of <strong>six days</strong> — the value of
+    switching the rail rather than relying on <code>shutdown -h</code> is what both paths exist to
+    provide.</p>
+
+    <h3>Over-discharge — three layers, and only one is any use</h3>
+    <p>A natural assumption is that the cells' protection circuits handle running flat. They don't,
+    or not in the way that matters. Note the ordering.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Layer</th><th class="num">Trips at</th><th>What it actually does</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Firmware / software graceful shutdown</strong></td><td class="num"><strong>3.1 V</strong></td><td>clean halt, filesystem intact, cycle life preserved</td></tr>
+        <tr><td>Boost converter input cutoff</td><td class="num">~2.9 V</td><td>nothing useful — it simply stops</td></tr>
+        <tr><td>Cell protection PCB</td><td class="num">~2.5 V</td><td>prevents cell damage</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>The boost quits at 2.9 V, above the protection threshold at 2.5 V.</strong> So in
+    normal operation the cell protection never activates — the boost dies first and the Pi loses
+    power abruptly. Protection exists for shorts and faults, not routine over-discharge.</p>
+    <p>Graceful shutdown is therefore required regardless of path, for two reasons beyond cell
+    chemistry: running to the cutoff every time is an <strong>unclean shutdown every time</strong>
+    (survivable thanks to atomic writes, but that's the safety net, not the plan), and repeatedly
+    discharging to 2.5 V instead of stopping at ~3.1 V measurably shortens Li-ion cycle life.</p>
+    <p><strong>Path A gets this in firmware.</strong> Below the low-voltage threshold (default
+    3.1 V, settable 3.0–4.2 V) it emulates a button click, the Pi shuts down gracefully, and it then
+    cuts power. A separate <strong>recovery voltage threshold</strong> stops it restarting until the
+    voltage comes back up.</p>
+    <p><strong>Path B must implement both halves in software.</strong> The trigger is easy — the
+    MAX17048 has an alert output with a configurable threshold. The second half is subtle:</p>
+    <div class="note flag">
+      <span class="lbl">The drain-to-death loop</span>
+      <p>If the Pi halts on low battery but the DS3231 alarm still stands, it wakes at the next
+      scheduled time, boots onto a flat pack, discovers low battery and halts again —
+      <strong>repeating until the cells reach the protection cutoff</strong>, burning boot energy
+      each cycle. Path B must clear the alarm or set a far-future one when halting for low battery,
+      because it has no firmware recovery threshold to fall back on.</p>
+    </div>
+    <p>Voltage sag is not a complication: two 18650s in parallel present ~25 mΩ, so a 0.35 A draw
+    sags roughly 9 mV. Thresholds can be set against the resting curve without correction.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <caption>Frames on one full charge — one row at a time, not a total</caption>
+      <thead><tr><th class="num">Interval</th><th class="num">Runtime</th><th class="num">Frames</th><th class="num">Video @ 24 fps</th><th class="num">at q80 (~2.2 MB)</th><th class="num">at q90 (~4 MB)</th></tr></thead>
+      <tbody>
+        <tr><td class="num">2 s</td><td class="num">22.5 h</td><td class="num">40,500</td><td class="num">28 min</td><td class="num"><strong>89 GB</strong></td><td class="num">162 GB</td></tr>
+        <tr><td class="num">5 s</td><td class="num">35.6 h</td><td class="num">25,600</td><td class="num">18 min</td><td class="num">56 GB</td><td class="num">103 GB</td></tr>
+        <tr><td class="num">10 s</td><td class="num">44.3 h</td><td class="num">15,950</td><td class="num">11 min</td><td class="num">35 GB</td><td class="num">64 GB</td></tr>
+        <tr><td class="num">30 s</td><td class="num">52.8 h</td><td class="num">6,340</td><td class="num">4.4 min</td><td class="num">14 GB</td><td class="num">25 GB</td></tr>
+        <tr><td class="num">60 s</td><td class="num">55.5 h</td><td class="num">3,330</td><td class="num">2.3 min</td><td class="num">7.3 GB</td><td class="num">13 GB</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <div class="note">
+      <span class="lbl">Sizing principle</span>
+      <p>The card is emptied at every recharge, and the battery binds within a charge. So the card
+      only ever needs to hold <strong>one full charge's worth of frames</strong> at the shortest
+      interval you'd realistically use. It is not accumulating across deployments.</p>
+    </div>
+
+    <p><strong>128 GB covers every case at q80</strong>, including the pathological one — a
+    22-hour continuous 2-second timelapse. At q90 the same case needs 162 GB, and if frames run to
+    8 MB on a detailed daylight cityscape it would exceed even a 256 GB card. <strong>Hence q80 as
+    the default and a 128 GB card</strong>, saving €10 and removing the failure mode rather than
+    buying around it.</p>
+
+    <h4>Adaptive quality</h4>
+    <p>The device knows the interval and planned duration at arm time, so <code>storage.py</code>
+    should compute the budget and pick quality to fit: choose the highest <em>q</em> such that
+    <code>expected_frames × size(q) &lt; free_space × 0.9</code>. Short sessions get q90 and the
+    extra margin; long ones drop to q80 and still complete. If even q80 doesn't fit, the config
+    page should say so and propose a longer interval rather than filling the card mid-session.
+    Show the estimate at arm time — <em>"8,640 frames, ~19 GB, fits"</em> — so the decision is
+    visible before you walk away. This needs an empirical <strong>size-versus-quality curve from
+    phase 0</strong>.</p>
+
+    <p>On whether q80 is visible: at 24 fps each frame is on screen for 42 ms, and a 12 MP frame is
+    downscaled to a 4K output, so blocking is essentially invisible in motion. <strong>One caveat:
+    </strong> artifacts can surface <em>after</em> grading, because deflickering and exposure
+    correction stretch tonal values — and a smooth sunset sky gradient is the worst case for JPEG
+    blocking. If a session is destined for heavy grading, q90 buys margin, which is precisely what
+    the adaptive rule hands you when the budget allows.</p>
+
+    <p>Worth internalising early: <strong>a twelve-hour night at 10 s is three minutes of
+    footage.</strong> Most sunset sequences want 2–5 s.</p>
+
+    <h3>Rejected: encoding video on-device</h3>
+    <p>Tempting, because the desired output is a video and stills are 13× larger than H.264 would
+    be. It doesn't survive contact with the details. <strong>The hardware encoder can't do it</strong>
+    — the Zero 2 W's VideoCore IV tops out at <strong>1080p30</strong> H.264, so 4K would have to be
+    encoded in software, which is exactly the CPU cost the design avoids.</p>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>At a 5 s interval</th><th class="num">JPEG</th><th class="num">On-the-fly software H.264</th></tr></thead>
+      <tbody>
+        <tr><td>Energy per frame</td><td class="num">3.20 J</td><td class="num">~3.95 J</td></tr>
+        <tr><td>Average power</td><td class="num">0.64 W</td><td class="num">~0.79 W</td></tr>
+        <tr><td>Runtime</td><td class="num">36 h</td><td class="num"><strong>~29 h</strong></td></tr>
+        <tr><td>Storage per frame</td><td class="num">4 MB</td><td class="num">~0.3 MB</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>So the power math roughly works — a 15–20 % runtime cost, not a catastrophe — and it would
+    allow a 32 GB card, <strong>saving about €17</strong>. Encoding at the <em>end</em> of a session
+    is strictly worse: 8,640 frames at ~1.5 fps is 1.6 h of full-CPU work costing ~3 Wh,
+    <strong>13 % of the pack</strong>, plus 1.6 h of dead time, for a job that takes five minutes on
+    a laptop.</p>
+    <p><strong>The disqualifier isn't power, it's the workflow.</strong> Inter-frame compression
+    makes deflickering impossible — residual flicker is baked into the pixels and motion estimation
+    smears it between frames — and it removes cropping, which is the stated reason for shooting 4K
+    at all. No re-grading, no re-timing, no dropping bad frames. A power cut can also lose the whole
+    file rather than one frame. €17 on a €190 build is not worth losing every downstream option on
+    footage you can't reshoot.</p>
+    <p><em>If crop room ever stops mattering</em>, capturing at 3840×2160 instead of 4608×2592 is
+    another 30 % off both storage and encode energy — but that spends the requirement, so it's a
+    separate decision.</p>
+    <p>One nuance on interval versus power. Power-cycling per frame costs 15–20 s of boot, about
+    30 J, against ~36 J to idle through a 60 s gap — break-even lands around a one-minute
+    interval. Below that, keep the Pi awake. Above it the saving is real, but per-frame SD power
+    cycling is a corruption risk not worth the milliwatts. <strong>Keep the Pi awake for the whole
+    session; the latch's job is between sessions.</strong></p>
+    <p>This cuts <em>with</em> the tuning work rather than against it: a tuned idle of 0.39 W makes
+    60 s of idling cost ~23 J, pushing break-even out to roughly <strong>78 s</strong>. Cheaper
+    idling makes per-frame power cycling <em>less</em> attractive, so the decision to stay awake
+    through a session gets stronger as the stack gets leaner.</p>
+
+    <h3>Extending runtime, ranked by value</h3>
+    <p>The design already clears the 6–12 h requirement. If you want more, these are the levers in
+    order of return.</p>
+    <ol class="steps">
+      <li><strong>Multiple scheduled windows instead of one long session.</strong> The one worth
+      building, and nearly free — the RTC already supports it. A sunset doesn't need twelve
+      continuous hours; it needs ninety minutes. Shoot 05:30–07:00 and 20:00–21:30 with a
+      <strong>hard power-cut between them</strong>, and a 25.9 Wh pack covers <strong>about a week
+      of dawn-and-dusk sequences</strong> rather than one long day. For cityscape and sunset work
+      this multiplies useful deployment time far more than any efficiency tuning can.</li>
+      <li><strong>Stop the camera between frames.</strong> 38–53 % depending on interval, pure
+      software, pending calibration.</li>
+      <li><strong>A third cell.</strong> 3 × 18650 → 10.5 Ah / 38.9 Wh, +50 % runtime for about
+      50 g. The dullest option and the most reliable.</li>
+      <li><strong>Solar.</strong> A 5–6 W panel could harvest 15–25 Wh/day in Swedish summer —
+      genuinely indefinite operation. But a panel fights the unobtrusive-pocket-box goal, and at
+      this latitude it's useless from roughly November to February.</li>
+      <li><strong>Adaptive interval.</strong> Stretch the interval when the scene isn't changing.
+      Saves frames and storage more than power, given the floor dominates.</li>
+    </ol>
+  </div>
+</section>
+
+<hr>
+
+<section class="col">
+  <h2>Enclosure</h2>
+  <ul>
+    <li><strong>The optical window is a screw-in 37 mm UV filter</strong>, not cut acrylic. Flat,
+    coated, cleanable, replaceable when scratched, and already round. Bond it over the hole with
+    an O-ring.</li>
+    <li>Lens as close to the glass as possible, with a <strong>black felt collar</strong> in the
+    gap — otherwise internal reflections ghost across any bright sky.</li>
+    <li><strong>One window only.</strong> The illuminated button is the status indicator, so
+    there's no second aperture to seal.</li>
+    <li><strong>Silica gel inside plus a PTFE vent plug.</strong> A sealed box that goes out warm
+    and cools overnight fogs its window from the inside, and you only find out on the footage.</li>
+    <li>A 1/4"-20 insert in the base. In practice a <strong>clamp beats a tripod</strong> for
+    leaving something somewhere — a tripod is conspicuous, blows over, and invites theft.</li>
+  </ul>
+
+  <h3>Design it to be opened, not to stay shut</h3>
+  <p><strong>No external ports at all</strong> — no charging socket, no USB, no SD slot through the
+  wall. One window, one button, nothing else.</p>
+  <p>This is a positive choice rather than a compromise. Retrieving the SD card already requires
+  opening the box, so <strong>opening is the normal service action, not an exceptional event.</strong>
+  Adding a sealed port to avoid it would mean designing and maintaining a second sealing interface
+  to save a step you still have to perform. Every hole is a leak path; the cheapest hole is the one
+  that isn't there.</p>
+  <p>Since it will be opened routinely — after every session for the card, and at every swap for the
+  cells — design accordingly:</p>
+  <ul>
+    <li><strong>Captive fasteners or latches</strong>, not loose screws you'll drop in wet grass at
+    dusk.</li>
+    <li><strong>A silicone O-ring or gasket seated in a machined or printed channel</strong>, not
+    adhesive foam tape. A gasket in a groove survives hundreds of cycles; stuck-on foam degrades and
+    shifts within a handful.</li>
+    <li><strong>A lid that can only go on one way</strong> — an asymmetric bolt pattern or a
+    locating pin. Every reassembly happens in the field, often in poor light and a hurry.</li>
+    <li><strong>Desiccant that's easy to reach and replace</strong>, because each opening admits
+    humid air.</li>
+    <li>Prefer a lid that opens <strong>away from the lens window</strong>, so the optical surface
+    isn't handled or set face-down during a swap.</li>
+  </ul>
+  <p>A 3D printed case makes all of this easier to arrange than a commercial box — captive-nut
+  pockets, a proper gasket groove, a cell sled with retention, and a lens hood can all be printed
+  in.</p>
+</section>
+
+<hr>
+
+<section class="col">
+  <h2>Software outline</h2>
+  <p>Not yet started. Python and picamera2 on the Pi; no firmware anywhere else.</p>
+  <ul>
+    <li><code>camera.py</code> — locks everything automatic: <code>AeEnable=False</code>,
+    <code>AwbEnable=False</code>, explicit <code>ColourGains</code>, fixed
+    <code>LensPosition</code>. Autofocus hunting between frames ruins a sequence. Because those are
+    locked, <code>stop()</code>/<code>start()</code> around each capture costs no reconvergence —
+    make streaming vs stopped a <strong>config flag</strong> so the calibration run can measure
+    both.</li>
+    <li><code>scheduler.py</code> — <strong>monotonic deadlines, not
+    <code>sleep(interval)</code></strong>, or capture time accumulates as drift. Skip a late
+    frame rather than catching up. Model a session as a <strong>list of windows</strong>, not a
+    single start/stop — multi-window scheduling with a power-cut between windows is the
+    highest-value runtime extension available.</li>
+    <li><code>ramp.py</code> — a sunset spans about ten stops, and naive per-frame auto-exposure
+    strobes. Measure mean luma, correct by a <strong>capped step of ≤1/6 stop per frame</strong>.
+    Shutter first up to a motion-blur cap around 1/25 s, then gain.</li>
+    <li><code>storage.py</code> — write <code>NNNNNN.jpg.tmp</code>, fsync, rename, fsync the
+    directory, so power loss costs at most one frame. Log exposure, gain and lux per frame to
+    <code>frames.csv</code>. Also owns the <strong>storage budget</strong>: at arm time, pick JPEG
+    quality so the planned session fits the free space, and surface the estimate on the config
+    page.</li>
+    <li><code>rtc.py</code> — set the wake alarm, clear the flag on boot. Keep it behind a small
+    interface with one implementation per power path, so switching between them is a config
+    change rather than a rewrite.</li>
+    <li><code>status.py</code> — button press durations and LED blink codes.</li>
+    <li><code>web.py</code> — the settings page, served only while the AP is up.</li>
+  </ul>
+  <p>Read-only root via overlayfs, frames on a separate ext4 data partition. Trim boot by
+  disabling <code>NetworkManager-wait-online</code>, <code>ModemManager</code>, avahi,
+  triggerhappy, Pi Bluetooth and swap — target 15–20 s to first frame. On the laptop,
+  <code>ffmpeg</code> with <code>deflicker=mode=pm:size=10</code>, driven by the CSV.</p>
+
+  <h3>Power-tuning checklist</h3>
+  <p>Because idle is ~85 % of consumption, tuning the stack is the highest-leverage software work
+  in the project. Published measurements take a headless Zero 2 W from <strong>120–144 mA down to
+  74–100 mA</strong>, one report reaching <strong>77 mA with WiFi still enabled</strong> — about a
+  third off the idle floor and 28 % off total draw.</p>
+</section>
+
+<section>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Change</th><th class="num">Measured saving</th></tr></thead>
+      <tbody>
+        <tr><td>Disable HDMI output</td><td class="num">17–30 mA</td></tr>
+        <tr><td>Remove the <code>vc4-kms-v3d</code> driver</td><td class="num">16–17 mA</td></tr>
+        <tr><td>Disable composite / TV out</td><td class="num">16–17 mA</td></tr>
+        <tr><td>Disable ACT and power LEDs</td><td class="num">2–5 mA</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>Roughly, in <code>config.txt</code>: comment out <code>dtoverlay=vc4-kms-v3d</code>, disable
+    TV out, <code>dtoverlay=disable-bt</code>, <code>dtparam=audio=off</code>,
+    <code>dtparam=act_led_trigger=none</code>, <code>disable_splash=1</code>,
+    <code>boot_delay=0</code>. Then disable <code>bluetooth</code>, <code>ModemManager</code>,
+    <code>avahi-daemon</code>, <code>triggerhappy</code> and <code>dphys-swapfile</code>, mask
+    <code>NetworkManager-wait-online</code>, set journald <code>Storage=volatile</code>, and mount
+    with <code>noatime</code>.</p>
+
+    <div class="note flag">
+      <span class="lbl">Verify against the OS you install</span>
+      <p>Parameter names have shifted across Bullseye → Bookworm → Trixie, especially around KMS
+      and display. Apply them <strong>one at a time with the USB meter attached</strong> and record
+      each delta — a flag that silently does nothing is worse than no flag, because you'll budget
+      for a saving you never got.</p>
+    </div>
+
+    <h4>Three more, not in the published lists</h4>
+    <ul>
+      <li><strong><code>rfkill block wifi</code> outside the AP window.</strong> The 77 mA figure
+      was measured <em>with</em> the radio up. This device needs WiFi for five minutes at
+      configuration time and never again during a session.</li>
+      <li><strong>Stop the camera pipeline between frames.</strong> The sensor and ISP draw current
+      whenever streaming; at a 30 s interval you power them for 30 s to use half a second. The
+      usual objection is that restarting costs AE/AWB convergence — but <strong>exposure is locked
+      here by design</strong>, so that cost doesn't apply. Project-specific, unmeasured, and
+      probably the most promising lever left.</li>
+      <li><strong>Journald to tmpfs and <code>noatime</code></strong> stop background SD writes
+      waking things up. Small, free.</li>
+    </ul>
+
+    <div class="note">
+      <span class="lbl">What doesn't exist</span>
+      <p>The Pi has <strong>no suspend-to-RAM</strong>. There's no S3 state on BCM2710 — the only
+      options are idle and halted. That's why the idle floor is a floor you can lower but never
+      sleep through, and why cutting the rail between sessions needs the RTC hardware rather than a
+      software fix.</p>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<section>
+  <div class="col"><h2>Order of work</h2></div>
+
+  <div class="phase">
+    <div class="phase-n">Phase 0</div>
+    <div>
+      <h4>Bench truth — before buying anything else</h4>
+      <p>Items 1–4 plus a USB power meter. Run off a power bank on a windowsill, shoot a real
+      sunset-to-night with a throwaway <code>rpicam-still</code> loop, assemble with ffmpeg. Exit
+      when you like the image quality and have measured Wh/hour, real file sizes at <strong>q80 and
+      q90 both</strong> (the size-versus-quality curve the adaptive rule needs), and full-resolution
+      JPEG encode time. Every number in this document is an estimate until this
+      phase replaces it. If the IMX708 disappoints, the thing to reconsider is the camera module —
+      not the architecture. Encode time matters more than it looks: picamera2 encodes stills in
+      software, so it is likely the longest single step in a capture and sets the floor on the
+      shortest interval the device can sustain.</p>
+    </div>
+  </div>
+  <div class="phase">
+    <div class="phase-n">Phase 1</div>
+    <div><h4>Capture app, and power tuning</h4><p>Interval accuracy, locked exposure, atomic
+    writes, metadata log. Then work the power-tuning checklist with the USB meter attached, one
+    change at a time, recording each delta — worth ~28 % of total draw and cheaper than any
+    hardware change available to you.</p></div>
+  </div>
+  <div class="phase">
+    <div class="phase-n">Phase 2</div>
+    <div><h4>Exposure ramping</h4><p>Separate from phase 1 because it decides whether sunsets look good.</p></div>
+  </div>
+  <div class="phase">
+    <div class="phase-n">Phase 3</div>
+    <div><h4>Power control</h4><p>Confirm the <strong>L3V7's ~0.3 mA standby</strong> on the bench,
+    then set the low-voltage and recovery thresholds and prove them by running a session to empty. Bring up whichever you choose, verify the <code>gpio-poweroff</code> handshake, and
+    finish with 50 forced power-cuts mid-capture requiring a clean card mount every time.</p></div>
+  </div>
+  <div class="phase">
+    <div class="phase-n">Phase 4</div>
+    <div><h4>AP config page, button, blink codes</h4><p>The whole field interface.</p></div>
+  </div>
+  <div class="phase">
+    <div class="phase-n">Phase 5</div>
+    <div><h4>Enclosure and field test</h4><p>An unattended overnight run in real weather.</p></div>
+  </div>
+</section>
+
+<hr>
+
+<section>
+  <div class="col"><h2>Verification</h2></div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>What</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>Image quality</td><td>Phase 0 sunset sequence, at 100 % and as a 4K crop</td></tr>
+        <tr><td>JPEG encode time</td><td>Time 20 full-res captures; sets the minimum sustainable interval</td></tr>
+        <tr><td>Size vs quality</td><td>20 frames each at q75/q80/q85/q90, varied scenes; feeds the storage budget</td></tr>
+        <tr><td>Storage budget</td><td>Arm a session larger than free space; must refuse, not fill the card mid-run</td></tr>
+        <tr><td>Interval accuracy</td><td><code>frames.csv</code> timestamps — stddev of deltas under 50 ms</td></tr>
+        <tr><td>Shooting power</td><td>USB meter across a 1 h run against the 1.1 W design point</td></tr>
+        <tr><td>Tuned idle floor</td><td>USB meter, per change, one at a time; target ≤80 mA headless</td></tr>
+        <tr><td><code>P_cam</code>, streaming</td><td>picamera2 started but not capturing, minus base idle — the model's key input</td></tr>
+        <tr><td>Camera stop/start saving</td><td>1 h at the real interval, streaming vs stopped, back to back</td></tr>
+        <tr><td>Multi-window scheduling</td><td>Two windows in one night with a power-cut between; both sequences complete</td></tr>
+        <tr><td>Standby power</td><td>µA meter on the pack over 24 h with power cut; confirm the ~0.3 mA datasheet figure</td></tr>
+        <tr><td>Low-voltage shutdown</td><td>Run a session to the threshold; must halt cleanly, cut power, and not re-wake flat</td></tr>
+        <tr><td>Shutdown safety</td><td>50 forced power-cuts mid-capture; card mounts clean every time</td></tr>
+        <tr><td>Wake accuracy</td><td>Alarm 12 h out; first frame within a few seconds</td></tr>
+        <tr><td>Battery honesty</td><td>One run to empty, logging MAX17048 against actual runtime</td></tr>
+        <tr><td>Weatherproofing</td><td>Overnight outdoors in rain; inspect the window for condensation</td></tr>
+        <tr><td>Gasket durability</td><td>20 open/close cycles, then repeat the rain test</td></tr>
+        <tr><td>Holder retention</td><td>Shake and drop-test a loaded sled; no contact dropout under vibration</td></tr>
+        <tr><td>Cell swap</td><td>Full swap with the device armed; wake alarm and schedule survive</td></tr>
+        <tr><td>Full system</td><td>Configure, leave 24 h, retrieve, assemble without a laptop in the field</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="col"><h2>Known risks</h2></div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>IMX708 quality disappoints at dusk</td><td>Phase 0 answers this before €140 more is spent; the HQ Camera is the fallback, at the cost of pocketability</td></tr>
+        <tr><td>L3V7 standby exceeds its 0.3 mA datasheet figure</td><td>Confirm on the bench in phase 3; path B is the escape hatch if it is far off</td></tr>
+        <tr><td>Flat pack re-wakes and drains to the protection cutoff</td><td>Firmware recovery threshold on path A; on path B, clear the alarm when halting for low battery</td></tr>
+        <tr><td>Path B: <code>BBSQW</code> not set, alarm never fires</td><td>Explicit test — set an alarm, pull Vcc, confirm <code>INT</code> goes low on backup power</td></tr>
+        <tr><td>Pi hangs, power never cut, pack drains</td><td>Hardware watchdog; BMS undervoltage is the backstop — costs a charge cycle, not hardware</td></tr>
+        <tr><td>SD corruption on power loss</td><td>Atomic writes, read-only root, <code>gpio-poweroff</code> handshake; verified by the 50-cut test</td></tr>
+        <tr><td>Exposure flicker through sunset</td><td>Capped-step ramp, logged metadata, post deflicker — three independent defences</td></tr>
+        <tr><td>Window fogging</td><td>Desiccant and vent plug; caught by the overnight field test</td></tr>
+        <tr><td>Cold cuts runtime</td><td>25 % derate already in the budget; 7.0 Ah against a 5.4 Ah requirement</td></tr>
+        <tr><td>Parallel cells mismatched on swap</td><td>Matched labelled sets, protected cells, rotate together — never top up one cell</td></tr>
+        <tr><td>Holder contact dropout ends a session</td><td>Quality holder with retention; verified by shake test</td></tr>
+        <tr><td>Gasket wear from routine opening</td><td>O-ring in a groove, not adhesive foam; re-test after 20 cycles</td></tr>
+        <tr><td>Theft</td><td>Clamp mount, unremarkable enclosure, don't leave it where you'd mind losing €175</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer class="col">
+  Sources —
+  <a href="https://www.cnx-software.com/2021/12/09/raspberry-pi-zero-2-w-power-consumption/">Pi Zero 2 W power deep dive</a> ·
+  <a href="https://forums.raspberrypi.com/viewtopic.php?t=150303">Pi Zero consumption after shutdown</a> ·
+  <a href="https://forums.raspberrypi.com/viewtopic.php?t=347469">Camera Module 2 &amp; 3 power draw</a> ·
+  <a href="https://www.raspberrypi.com/news/new-autofocus-camera-modules/">Raspberry Pi autofocus camera modules</a> ·
+  <a href="https://www.pololu.com/product/2565">Pololu U3V50F5</a> ·
+  <a href="https://www.uugear.com/product/witty-pi-4-l3v7/">Witty Pi 4 L3V7</a> ·
+  <a href="https://www.uugear.com/product/witty-pi-4-mini/">Witty Pi 4 Mini</a> ·
+  <a href="https://github.com/bablokb/pi-wake-on-rtc">pi-wake-on-rtc</a> ·
+  <a href="https://docs.arducam.com/Raspberry-Pi-Camera/Native-camera/64MP-OV64A40/">Arducam Owlsight OV64A40</a> ·
+  <a href="https://www.lo-tech.co.uk/wiki/Tuning_the_RaspberryPi_Zero2W_for_Minimum_Power_Consumption">Tuning the Zero 2 W for minimum power</a> ·
+  <a href="https://forums.raspberrypi.com/viewtopic.php?t=392265">Headless Zero 2 W power reductions</a> ·
+  <a href="https://rockchip.fr/RV1106%20datasheet%20V1.9.pdf">Rockchip RV1106 datasheet</a> ·
+  <a href="https://www.cnx-software.com/2024/02/29/luckfox-pico-pro-pico-max-rockchip-rv1106-boards-100m-ethernet-5mp-camera/">Luckfox Pico Pro / Max</a>
+</footer>
+
+</div>
