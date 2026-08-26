@@ -1,6 +1,6 @@
 # From Photons to JPEG — why the camera dictates the board
 
-*Companion to [HARDWARE.md](HARDWARE.md). Background reading, not decisions.*
+*Companion to [PI-BUILD.md](PI-BUILD.md). Background reading, not decisions.*
 
 Decision 1 in the hardware document rules out a microcontroller and picks a Linux board. That
 looks like a statement about processing power, and it isn't. This document explains what

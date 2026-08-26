@@ -1,6 +1,8 @@
-# Pocket Timelapse Camera — Hardware Decision Document
+# Pocket Timelapse Camera — the Raspberry Pi build
 
-*Status: component selection. No code written yet — build starts when the first parts arrive.*
+*The Raspberry Pi architecture — the more settled of the two. Component selection complete; build
+starts when the first parts arrive. The sibling document is [UVC-BUILD.md](UVC-BUILD.md), which
+keeps 4K without depending on the Pi at all.*
 *Last revised: 2026-08-24*
 
 ## Context
@@ -124,6 +126,18 @@ charging as a backup if you're ever without the bay charger.
 external port). That is a datasheet figure rather than a bench measurement, so Phase 3 should still
 confirm it, but it is decisive: at 0.3 mA the circuit costs about as much as the cells' own
 self-discharge over the timescales this device is stored for. See "Standby" below.
+
+### The other architecture
+
+The Raspberry Pi dependency is real and it bit in 2026, when substrate supply constraints from the
+AI hardware boom left the Zero 2 W unobtainable for months. One architecture escapes it without
+giving up 4K or image quality: a **UVC camera module carrying its own tuned ISP**, which removes the
+need for the host to have one — and therefore for it to be a Pi.
+
+That path has its own document: **[UVC-BUILD.md](UVC-BUILD.md)**. It shares this build's battery,
+enclosure, storage and interface decisions and differs only in the host and camera — and it offers
+a materially better sensor (IMX585, **+1.6 stops**) at the cost of crop room and three unresolved
+measurements.
 
 ### Path B — DS3231 + P-FET latch
 
@@ -387,9 +401,13 @@ better than a percentage would: the real question is hours-to-completion, and
 
 Buy the standard Module 3 first. The swap path exists; don't spend it on day one.
 
-**Considering a bigger sensor?** [SENSORS.md](SENSORS.md) surveys the IMX range, explains why Sony
-sensors carry no ISP and where that leaves the options, and makes the case that a locked-off
-timelapse recovers much of a large sensor's advantage through exposure time alone. Short version:
+**Considering a bigger sensor, or a different host?** [SENSORS.md](SENSORS.md) surveys the IMX
+range, explains why Sony sensors carry no ISP, and sets out what ISP **tuning** is — the real
+reason this design keeps returning to the Raspberry Pi. Untuned, an ISP doesn't just produce poor
+colour; the 3A loop stops working entirely, which would break exposure ramping. Raspberry Pi are
+close to the only vendor shipping open, tooled, validated tuning for cheap sensors. It also makes
+the case that a locked-off timelapse recovers much of a large sensor's advantage through exposure
+time alone. Short version:
 the IMX477 HQ Camera is the one sensible upgrade, and its value is the **C/CS lens mount** rather
 than the +0.3 stops of sensor area — everything larger leaves the Raspberry Pi ecosystem and takes
 the battery budget with it.
@@ -771,6 +789,27 @@ with `noatime`.
 > the USB meter attached** and record the delta — a flag that silently does nothing is worse than
 > no flag, because you'll budget for a saving you never got.
 
+#### Disabling cores — potentially the largest lever, and the one with a real trade-off
+
+Jeff Geerling reports **halving the Zero 2 W's idle power by disabling cores** (`maxcpus=` on the
+kernel command line). If that holds, it is worth more than every `config.txt` change above
+combined, because idle is ~85 % of total consumption.
+
+**But it cuts directly against race-to-idle.** The stills JPEG encoder is multithreaded, so fewer
+cores means a longer encode — more time at higher power, and a higher floor on the shortest
+sustainable interval. The two effects pull in opposite directions:
+
+| | 4 cores | 1–2 cores |
+|---|---|---|
+| Idle floor | baseline | **~half** |
+| JPEG encode time | baseline | longer, roughly inversely with core count |
+| Net effect | — | **unknown — measure it** |
+
+Given how lopsided the idle/active split is, fewer cores may still win comfortably. But this is
+exactly the kind of assumption that needs measuring both ways rather than reasoning about: run the
+same session at `maxcpus=1`, `2` and `4`, and compare **Wh per frame**, not idle current alone.
+Idle current alone will flatter the low-core case and hide the encode penalty.
+
 Three more, not in the published lists:
 
 - **`rfkill block wifi` outside the AP window.** The 77 mA figure was measured *with* the radio up.
@@ -834,6 +873,7 @@ time.
 | Tuned idle floor | USB meter, per change, one at a time; target ≤80 mA headless |
 | `P_cam`, streaming | picamera2 started but not capturing, minus base idle — the model's key input |
 | Camera stop/start saving | 1 h at the real interval, streaming vs stopped, back to back |
+| Core count | Same session at `maxcpus=1`/`2`/`4`; compare **Wh per frame**, not idle current |
 | Multi-window scheduling | Two windows in one night with a power-cut between; both sequences complete |
 | Standby power | µA meter on the pack over 24 h with power cut; confirm the ~0.3 mA datasheet figure |
 | Low-voltage shutdown | Run a session to the threshold; must halt cleanly, cut power, and not re-wake flat |
@@ -881,5 +921,6 @@ time.
 - [Arducam Owlsight OV64A40](https://docs.arducam.com/Raspberry-Pi-Camera/Native-camera/64MP-OV64A40/)
 - [Tuning the Raspberry Pi Zero 2 W for minimum power consumption](https://www.lo-tech.co.uk/wiki/Tuning_the_RaspberryPi_Zero2W_for_Minimum_Power_Consumption)
 - [Headless Zero 2 W, 30–40 % power reductions](https://forums.raspberrypi.com/viewtopic.php?t=392265)
+- [Disabling cores to halve the Zero 2 W's power consumption — Jeff Geerling](https://www.jeffgeerling.com/blog/2021/disabling-cores-reduce-pi-zero-2-ws-power-consumption-half/)
 - [Rockchip RV1106 datasheet](https://rockchip.fr/RV1106%20datasheet%20V1.9.pdf)
 - [Luckfox Pico Pro / Max overview](https://www.cnx-software.com/2024/02/29/luckfox-pico-pro-pico-max-rockchip-rv1106-boards-100m-ethernet-5mp-camera/)

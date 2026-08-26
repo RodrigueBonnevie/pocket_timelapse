@@ -1,12 +1,13 @@
 # Sensor options — and why the small one is enough
 
-*Companion to [HARDWARE.md](HARDWARE.md). Background reading, not decisions.*
+*Companion to [PI-BUILD.md](PI-BUILD.md). Background reading, not decisions.*
 
 "Just use a bigger sensor" is the obvious question to ask of any camera project, and it deserves a
 real answer rather than a shrug. This document surveys what's available, explains why the market
-looks the way it does, and sets out the reason a 1/2.43" sensor is an adequate choice for a
-locked-off timelapse specifically — which is not the same as saying it would be adequate for
-handheld photography.
+looks the way it does — including what ISP *tuning* is and why it, rather than any hardware, is the
+real constraint — and sets out the reason a 1/2.43" sensor is an adequate choice for a locked-off
+timelapse specifically, which is not the same as saying it would be adequate for handheld
+photography.
 
 ---
 
@@ -35,7 +36,86 @@ isn't a gap waiting to be filled; it's a consequence of where ISPs live in the s
 
 ---
 
-## 2. The sensors, ranked by what matters
+## 2. Who buys these sensors — and what "tuning" actually is
+
+The obvious follow-up to §1 is: if these sensors have no ISP, who buys them and what do they run
+them on? The answer explains why every alternative path in this project circles back to the same
+place.
+
+**IMX708 is a mobile phone sensor.** Sony's volume customer is handset OEMs; Raspberry Pi is a
+rounding error to them. **IMX477 is embedded and industrial vision** — drones, machine vision,
+broadcast boxes, the NVIDIA Jetson ecosystem. In every case the sensor is a dumb photon-counter and
+the intelligence lives downstream, in a **host SoC with an ISP block**: Qualcomm Spectra, MediaTek
+Imagiq, Apple silicon, NVIDIA Jetson, Broadcom VideoCore, Rockchip, Ambarella.
+
+### The silicon is not sensor-specific — but three layers must line up
+
+| Layer | Sensor-specific? | Effort |
+|---|---|---|
+| **Hardware interface** — MIPI lanes, data rate, RAW8/10/12 | barely | usually just works |
+| **Kernel driver** — V4L2 subdev, register maps, modes, exposure/gain | yes | medium; often already exists |
+| **Tuning** — calibration data for the ISP | **completely** | **specialist** |
+
+ISP silicon is generic and configurable. What makes it produce *good* images from a particular
+sensor is the tuning, and that is the layer that fails.
+
+### What tuning actually is
+
+It is a measured dataset, not code:
+
+- **Black level** and defect maps
+- **Lens shading** — a per-channel gain map across the frame from a flat field. Specific to the
+  sensor *and the lens*
+- **Colour correction matrix** — derived from shooting a colour chart under several calibrated
+  illuminants
+- **AWB calibration** — how this sensor responds across colour temperature, so the white-balance
+  algorithm knows what "grey" looks like
+- **Noise profile** — noise against signal against gain, so denoise strength scales correctly
+- Gamma, sharpening, AE metering weights
+
+Done properly this needs a light box, colour charts and calibrated illuminants. It is a lab job.
+
+> **The consequence is worse than bad colour.** From the Rockchip world, on this exact sensor: the
+> IMX477 has a kernel driver but no tuning files, and *"without camera calibration, rkISP does not
+> have the knowledge to process images and provide feedback to the driver, meaning automatic
+> exposure, gain control and white balance control are not available."*
+>
+> Untuned doesn't mean slightly worse pictures. **It means the 3A loop doesn't function**, because
+> the algorithms have no reference data. For a project whose entire hard problem is ramping
+> exposure through a sunset, that is fatal.
+
+### Which tuned combinations actually exist
+
+| Ecosystem | Tuning | Availability |
+|---|---|---|
+| **Raspberry Pi** | JSON per sensor, shipped in libcamera | **open, documented, tooled** |
+| Rockchip (rkisp1) | YAML per sensor, `LIBCAMERA_RKISP1_TUNING_FILE` | partial — **no IMX477 tuning exists** |
+| NVIDIA Jetson | closed | buy pre-tuned modules from Leopard / e-con / Arducam |
+| Qualcomm, MediaTek | closed | not accessible |
+
+Raspberry Pi even publish their **Camera Tuning Tool** ([raspberrypi/ctt](https://github.com/raspberrypi/ctt)),
+which takes DNG calibration images and emits a tuning JSON for the VC4 or PiSP ISP, with a web UI,
+MTF measurement and empirical sharpening tuning. That is remarkably open for this domain.
+
+Community tuning does happen — the libcamera maintainers have stated interest in enabling RK3588
+tuning *including IMX477*, and hobby projects have hit this wall and documented it. But it is an
+active frontier, not a solved problem: someone's multi-month project, not a step in yours.
+
+### The reframe
+
+**The Pi's advantage is not its ISP hardware.** Rockchip's ISP is arguably comparable silicon. The
+advantage is that Raspberry Pi are close to the only vendor shipping **open, tooled, validated
+tuning for cheap small sensors** — and handing you the tool to make more.
+
+So the pull back toward the Pi in this project was never about performance or availability. It is
+that everyone else either keeps their tuning closed, or has not done it for the sensor you want.
+That is a far less arbitrary reason than "the Pi is simply better", and it is worth knowing before
+evaluating any future alternative: **ask what tuning exists for the sensor you intend to use, before
+anything else.**
+
+---
+
+## 3. The sensors, ranked by what matters
 
 For a fixed field of view, low-light performance tracks **total sensor area** more than anything
 else, so the useful comparison is in stops relative to the current choice.
@@ -70,7 +150,7 @@ Neither is a Pi Zero part.
 
 ---
 
-## 3. Micro Four Thirds and second-hand lenses
+## 4. Micro Four Thirds and second-hand lenses
 
 The appeal is obvious: 3.3 stops of light-gathering, and a deep second-hand market of good glass.
 Two problems.
@@ -87,7 +167,7 @@ with a different enclosure, a different host, and a different cost bracket.
 
 ---
 
-## 4. The counterpoint that undercuts the whole question
+## 5. The counterpoint that undercuts the whole question
 
 **In a locked-off timelapse, exposure time is nearly free.**
 
@@ -102,7 +182,7 @@ budget entirely unused.
 That is not free, and the caveats are real:
 
 - Longer exposures mean more sensor-on time, which costs power (see the active power budget in
-  [HARDWARE.md](HARDWARE.md)).
+  [PI-BUILD.md](PI-BUILD.md)).
 - Thermal noise and hot pixels rise with exposure length, especially on a warm sensor in a sealed
   box.
 - The bright end of a sunset still needs short exposures, so this only helps the dark half of the
@@ -114,7 +194,7 @@ sensor handheld**, and this rig is always on a tripod. That recovers a substanti
 
 ---
 
-## 5. Recommendation
+## 6. Recommendation
 
 **Stay with the IMX708 for v1.** It is 11.9 MP, autofocus, with dynamic range Raspberry Pi have
 spent years tuning, and it clears the 4K-with-crop-room requirement directly. Whether its image
@@ -143,3 +223,7 @@ enclosure is the only thing that has to be redesigned.
 - [Arducam 20MP IMX283 USB 3.0 module with onboard ISP](https://www.arducam.com/arducam-20mp-usb-3-0-camera-module-with-16mm-c-mount-lens-b0477.html)
 - [Arducam xISP "Klarity" — external ISP for IMX283 on Jetson](https://www.arducam.com/arducam-xisp-klarity-pre-tuned-isp-1-20mp-high-sensitivity-mipi-camera-for-nvidia-jetson-orin-nx-orin-nano.html)
 - [Arducam Mega SPI camera — integrated ISP, 5 MP ceiling](https://docs.arducam.com/Arduino-SPI-camera/MEGA-SPI/MEGA-SPI-Camera/)
+- [Raspberry Pi Camera Tuning Tool (ctt)](https://github.com/raspberrypi/ctt)
+- [Raspberry Pi Camera Algorithm and Tuning Guide](https://datasheets.raspberrypi.com/camera/raspberry-pi-camera-guide.pdf)
+- [libcamera rkisp1 — per-sensor tuning file support](https://patchwork.libcamera.org/patch/16001/)
+- [Rockchip ISP1 open source documentation](https://opensource.rock-chips.com/wiki_Rockchip-isp1)
