@@ -1,149 +1,238 @@
 # Pocket Timelapse Camera — the UVC build
 
-*The second architecture. Keeps 4K and image quality without depending on the Raspberry Pi, by
-putting the tuned ISP inside the camera. **Three measurements stand between this and a buildable
-BOM** — see §5. The sibling document is [PI-BUILD.md](PI-BUILD.md).*
+*Status: design proposed, **three measurements outstanding** before the BOM can be trusted — see
+§8. The sibling architecture is [PI-BUILD.md](PI-BUILD.md).*
 
-The chosen design depends on the Raspberry Pi, and [SENSORS.md](SENSORS.md) §2 explains why: not
-performance, not price, but that Raspberry Pi are close to the only vendor shipping **open, tooled,
-validated ISP tuning** for cheap sensors. That dependency became a practical problem in 2026, when
-substrate supply constraints from the AI hardware boom left the Zero 2 W unobtainable for months.
+## Context
 
-This document describes the one architecture found that keeps 4K and keeps image quality while
-escaping that dependency entirely.
+A pocketable, battery-powered, weatherproof timelapse box you set down at dusk and collect a day or
+two later. Weeks of standby, 6–12 h of shooting minimum, field-configurable without a laptop,
+scheduled starts for sunsets, ≥4K stills. No on-device video encoding — it writes JPEGs to an SD
+card and you assemble on a laptop.
+
+Target form factor: a tight box with one waterproof button and one window for the lens, **no
+external ports**, opened by hand for the SD card and to swap cells.
 
 ---
 
-## 0. What this shares with the Pi build
+## Decision 1 — the tuned ISP lives in the camera
 
-The two architectures are siblings, not rivals: this is a different **host and camera**, not a
-different product. Everything below the imaging layer
-is inherited unchanged from [PI-BUILD.md](PI-BUILD.md) and is not repeated here:
+A raw sensor is useless on its own. Turning Bayer data into a photograph takes a hardware **ISP**,
+and an ISP produces good images only with sensor-specific **tuning** — a measured calibration
+dataset covering lens shading, colour matrices, noise profiles and white-balance response. Untuned,
+the auto-exposure loop doesn't merely look wrong; it does not function at all. See
+[SENSORS.md](SENSORS.md) §2 for what that involves and [IMAGE-PIPELINE.md](IMAGE-PIPELINE.md) for
+what an ISP actually does.
 
-| Shared, see PI-BUILD.md | |
+That tuning is the scarce thing. Doing it yourself is a lab job with colour charts and calibrated
+illuminants — months of specialist work, not a step in a hobby project.
+
+**This architecture buys the tuning instead**, by choosing a camera that already contains a tuned
+ISP and emits finished JPEGs.
+
+The consequence is the whole design: **the host never touches an image.** No demosaic, no 3A, no
+tuning files, no camera driver. It triggers a capture, receives compressed bytes, writes them to
+SD, and sleeps. That is a job for almost anything — which is what makes the rest of this document
+possible.
+
+The product category is **UVC**: USB Video Class camera modules with an onboard ISP. e-con Systems
+describe theirs as having *"a dedicated, in-built ISP… the ISP and sensor have been tuned for
+achieving excellent image quality under various lighting conditions including near darkness."*
+Standard interface, no vendor drivers.
+
+---
+
+## Decision 2 — the sensor
+
+UVC modules are built for **surveillance**, which is a stroke of luck: those sensors are designed
+for low light and wide dynamic range, exactly what a sunset needs. Sony's **STARVIS 2** generation
+is the current best.
+
+| Sensor | Format | Resolution | Pixel | Pixel area | Sensor area | Interface |
+|---|---|---|---|---|---|---|
+| IMX415 | 1/2.8" | 3864×2192 | 1.45 µm | 2.10 µm² | 17.8 mm² | USB 2.0 |
+| **IMX678** | 1/1.8" | 3840×2160 | 2.00 µm | 4.00 µm² | **33.2 mm²** | **USB 2.0** or 3.0 |
+| **IMX585** | **1/1.2"** | 3856×2180 | **2.90 µm** | **8.41 µm²** | **70.7 mm²** | USB 3.0 |
+
+**Chosen: IMX678 over USB 2.0**, in a board-level module with an M12 lens.
+
+**IMX415 is a trap.** It is the most common 4K UVC sensor and it is the *worst* of the three — high
+pixel density on a small optical format, weak in exactly the light this device shoots in. Do not
+select by resolution.
+
+**IMX585 is the upgrade**, and a serious one: **4.3× the pixel area of the IMX678's predecessor
+class** and more than double its sensor area. But see the coupling below before choosing it.
+
+### All of these are 4K with no crop room
+
+3840–3864 px wide means 4K exactly. There is no margin for cropping, straightening or stabilising
+in post. That is a real constraint and should be a deliberate choice: you are trading crop latitude
+for low-light performance.
+
+### The USB coupling — this decides more than it looks
+
+**IMX585 modules are USB 3.0. IMX678 is available in USB 2.0.** That single fact couples the sensor
+choice to the host choice:
+
+| | USB 2.0 | USB 3.0 |
+|---|---|---|
+| Bus power ceiling | **500 mA = 2.5 W** | 900 mA = 4.5 W |
+| Transfer, 2 MB frame | ~50 ms | ~5 ms |
+| MCU host possible? | **yes** — ESP32-P4 has USB 2.0 HS host | **no** |
+
+A timelapse needs *one frame at a time*, not video, so USB 3.0's bandwidth buys nothing here — the
+transfer term is negligible either way. What it costs is real: **double the power ceiling, and it
+rules out the low-power host entirely.**
+
+So the trade is: **IMX585 (+1.6 stops) forces an SBC host and its ~1.5 W floor. IMX678 (+0.5 stops)
+keeps the µA MCU host available.** Pick the sensor and the host together, not separately.
+
+---
+
+## Decision 3 — the host
+
+Two viable hosts, and the choice is genuinely open.
+
+| | **Tier B — SBC** | **Tier C — MCU** |
+|---|---|---|
+| Board | Radxa Zero 3W, Orange Pi Zero 2W | ESP32-P4 (+ ESP32-C6 for WiFi) |
+| Idle floor | ~1.5 W | **~30 µA** |
+| Camera options | IMX678 **or IMX585** | IMX678 only (USB 2.0) |
+| Software | Linux, v4l2, Python | ESP-IDF, C |
+| RTC + battery monitor | external (DS3231, MAX17048) | **onboard** — P4 has both |
+| Effort | moderate — reuse most of the Pi build's Python | high — firmware from scratch |
+
+**Tier B** is the pragmatic choice: Linux speaks UVC natively through v4l2, and `scheduler.py`,
+`storage.py`, `ramp.py` and `web.py` carry over with only the capture module rewritten. It also
+unlocks the IMX585.
+
+**Tier C** is where the architecture's real advantage lives. With no operating system there is no
+idle floor — the host sleeps at microamps between frames and the only energy spent is the camera's.
+Past a ~10 s interval that is transformative. It also simplifies the BOM: the ESP32-P4 has its own
+RTC, deep sleep and ADC, so the external RTC, load-switch latch and fuel gauge all disappear.
+
+---
+
+## Decision 4 — interface
+
+Unchanged from the sibling build, and settled: **one illuminated IP65 pushbutton** carrying status
+in blink codes, and configuration through a **WiFi AP with a web page** rather than a display. A
+display sealed inside an opaque box needs a second window to be useful, which is enclosure
+complexity bought for information the web page presents better.
+
+| Signal | Meaning |
 |---|---|
-| **Battery and power in** | 2 × protected 18650, hot-swap, external bay charger, matched-set discipline |
-| **Enclosure** | designed to be opened, one 37 mm filter window, no external ports, vent and desiccant |
-| **Interface** | one illuminated IP65 button with blink codes; WiFi AP config page |
-| **Storage** | adaptive JPEG quality against a per-session budget, 128 GB card sizing |
-| **Software** | `scheduler.py`, `storage.py`, `ramp.py`, `web.py`, `rtc.py`, and the post-processing pipeline |
-| **Over-discharge** | three-layer cutoff; graceful shutdown required regardless of host |
-
-What actually differs is the imaging layer and the power controller: `camera.py` swaps picamera2 for
-v4l2, and the Witty Pi 4 L3V7 is a Raspberry Pi HAT, so tier C would need its own RTC and load
-switch — the DS3231 + P-FET latch documented as path B in the Pi build applies directly.
+| dark | asleep, waiting for its alarm |
+| solid, dim | booting |
+| slow pulse | AP up, waiting for configuration |
+| flash per frame | shooting — shows liveness and the interval |
+| amber | battery low |
+| red | error, card full |
 
 ---
 
-## 1. The idea
+## Bill of materials
 
-**If the camera module contains its own tuned ISP and emits compressed frames, the host needs no
-ISP at all.**
+### Shared platform
 
-That single move dissolves the lock-in. The host stops being an imaging device and becomes a file
-writer: trigger a capture, receive JPEG bytes, write to SD, sleep. No demosaic, no 3A, no tuning,
-no libcamera — and therefore no reason it has to be a Raspberry Pi.
+| # | Part | Role | ≈ EUR |
+|---|---|---|---|
+| 1 | 128 GB A2 microSD (Samsung Pro Plus / SanDisk Extreme) | frames | 15 |
+| 2 | 2 × **protected** 18650 + quality hot-swap holder | 7.0 Ah / 25.9 Wh | 22 |
+| 3 | 16 mm IP65 illuminated pushbutton + driver transistor | input and status in one hole | 10 |
+| 4 | IP65 box ≈120×80×55 mm — or 3D printed | enclosure, designed to open | 18 |
+| 5 | 37 mm screw-in UV filter + O-ring | optical window | 12 |
+| 6 | PTFE vent plug + silica gel | condensation control | 8 |
+| 7 | 1/4"-20 threaded inserts | tripod / clamp mount | 5 |
+| | | **subtotal** | **≈ 90** |
 
-The product category that does this is **UVC**: USB Video Class camera modules with an onboard ISP.
-e-con Systems describe their IMX415 module as having *"a dedicated, in-built ISP… the ISP and
-sensor have been tuned for achieving excellent image quality under various lighting conditions
-including near darkness"*, output as MJPEG, UVC compliant, no drivers required.
+### Camera
 
-**You buy the tuning instead of doing it.** That is the whole insight.
+| Option | Sensor | Interface | ≈ EUR |
+|---|---|---|---|
+| **Default** | IMX678, M12 lens, board-level | USB 2.0 | **~110** |
+| Upgrade | IMX585 + C-mount lens | USB 3.0 | ~220 |
+
+> **Camera prices are estimates, not verified quotes.** Arducam and e-con both list these modules
+> but pricing varies by region and lens. Confirm before budgeting — this is the single largest line
+> in the build.
+
+### Host
+
+| Tier | Parts | ≈ EUR |
+|---|---|---|
+| **B** | Radxa Zero 3W (25) + Pololu U3V50F5 boost (18) + DS3231 & P-FET latch (15) + MAX17048 (12) | **70** |
+| **C** | ESP32-P4 board with ESP32-C6 (35) + boost (18) + load switch and passives (5) | **58** |
+
+### Totals
+
+| Build | Total |
+|---|---|
+| **Tier C + IMX678** — lowest power | **≈ €258** |
+| Tier B + IMX678 — easiest software | ≈ €270 |
+| Tier B + IMX585 — best image quality | ≈ €380 |
+
+**This is a more expensive build than the Pi architecture (~€175)**, and the camera is why. You are
+paying for someone else's ISP tuning, in a box. Whether that is worth €80–150 depends entirely on
+whether you can source a Raspberry Pi.
+
+### Accessories — outside the box, reusable
+
+| Item | Role | ≈ EUR |
+|---|---|---|
+| 4-bay 18650 charger (Nitecore / XTAR) | ~2 A per cell, ~2 h | 25 |
+| Spare set of 2 protected 18650s | a second set is a second session | 22 |
+| USB power meter with Wh/mAh totaliser | **not optional** — §8 depends on it | 15 |
+
+### On lens choice
+
+The default M12 module ships with a lens matched to the sensor. If you take the **IMX585 C-mount**
+route, note that a 16 mm lens on a 1/1.2" sensor gives roughly **38° horizontal** — normal-to-tele,
+about a 50 mm equivalent. For cityscapes and landscapes you likely want **6–8 mm** (~70°). Check the
+focal length before ordering; the bundled 16 mm is aimed at machine vision, not scenery.
+
+Fixed aperture and manual focus are *advantages* here — no focus breathing, no aperture flicker
+between frames, both of which are real contributors to timelapse flicker.
 
 ---
 
-## 2. Three tiers
+## Power budget
 
-| | Host | Camera | Idle floor | Availability | Work required |
-|---|---|---|---|---|---|
-| **A** | Pi Zero 2 W | Camera Module 3 | 0.39 W | ✗ scarce | none — the current design |
-| **B** | any available SBC | UVC module | ~1.5 W | ✅ | rewrite `camera.py` only |
-| **C** | **ESP32-P4** | UVC module | **~µA** | ✅ | full firmware rewrite |
+### Shooting — the model
 
-**Tier B** answers *"the Pi isn't available"*. A Radxa Zero 3W or Orange Pi Zero 2W speaks UVC
-natively through v4l2, needs no camera tuning because it's in the camera, and both boards are in
-stock. `scheduler.py`, `storage.py`, `ramp.py`, `web.py` and the entire power architecture survive
-untouched — only the capture module changes.
-
-**Tier C** answers *"Linux costs 85 % of my energy"*. The ESP32-P4 has **USB 2.0 High Speed host**,
-which is the specific capability that makes this possible; the ESP32-S3's USB is Full Speed only
-and would take over a second just to transfer one frame. Note the P4 has **no radio** — it needs a
-companion ESP32-C6 for the WiFi config AP.
-
----
-
-## 3. The power model
-
-### The terms
-
-Per captured frame, the camera is powered for `t_on`, decomposed as:
+Per frame the camera is powered for `t_on`:
 
 | Phase | Typical | Notes |
 |---|---|---|
 | ISP firmware boot | 0.5–1.5 s | **the dominant term** |
 | USB enumeration | 0.1–0.5 s | descriptors, set configuration |
 | Stream start + settle | 0.2–0.5 s | short, because exposure is locked |
-| Frame transfer | **~0.05 s** | 2 MB MJPEG over USB 2.0 HS (~40 MB/s) — negligible |
-
-**`P_cam` has a hard ceiling: USB 2.0 supplies at most 500 mA at 5 V = 2.5 W by specification.**
-USB 3.0 allows 900 mA = 4.5 W. So a bus-powered USB 2.0 module *cannot* exceed 2.5 W — but that is
-a ceiling, not a typical draw, and the actual figure is the weakest number in this document (see
-the callout below).
-
-### The equation
+| Frame transfer | ~0.05 s | 2 MB MJPEG over USB 2.0 HS — negligible |
 
 ```
-P_avg  =  P_host_sleep  +  ( E_cam + E_host_active + E_write ) / T
-
-E_cam  =  P_cam × t_on
+P_avg  =  P_host_sleep  +  ( P_cam × t_on  +  E_host_active  +  E_write ) / T
 ```
 
-With `P_host_sleep` ≈ 20 µA for an MCU, that first term vanishes — which is the entire point of
-tier C. Against the Pi's `P = 0.39 + 1.25/T`, the crossover interval is:
+For tier C, `P_host_sleep` ≈ 30 µA and vanishes. The energy per frame is essentially the camera's.
 
-```
-T*  =  ( E_uvc − 1.25 J ) / 0.39 W
-```
-
-### The numbers
-
-| Scenario | `P_cam` | `t_on` | `E_uvc` | **Crossover** |
-|---|---|---|---|---|
-| Optimistic | 1.0 W | 1.0 s | 1.53 J | **0.7 s** |
-| Plausible | 1.5 W | 1.5 s | 2.98 J | **4.4 s** |
-| Pessimistic | 2.0 W | 1.8 s | 4.45 J | **8.2 s** |
-| Worst case | 2.5 W | 2.5 s | 7.38 J | **15.7 s** |
+| Scenario | `P_cam` | `t_on` | `E_uvc` |
+|---|---|---|---|
+| Optimistic | 1.0 W | 1.0 s | 1.53 J |
+| Plausible | 1.5 W | 1.5 s | 2.98 J |
+| Pessimistic | 2.0 W | 1.8 s | 4.45 J |
+| Worst case | 2.5 W | 2.5 s | 7.38 J |
 
 > ### `P_cam` is the weakest number in this document
 >
-> **The crossover spans a factor of twenty and the model is essentially unconstrained without
-> measurement.** No vendor publishes a figure for a 4K UVC module; e-con omit power from their
-> See3CAM datasheets entirely, and a vendor leaving out a spec is rarely because it flatters them.
-> What exists is adjacent and imperfect:
+> No vendor publishes a figure for a 4K UVC module — e-con omit power from their datasheets
+> entirely, and a vendor leaving out a spec is rarely because it flatters them. What exists is
+> adjacent: Logitech C270 (720p) ~1.1 W; C920 (1080p) with its H.264 encoder quoted at ~1 W alone;
+> FLIR Firefly (USB3 machine vision) 1.5 W; USB 2.0 hard ceiling 2.5 W.
 >
-> - Logitech **C270** (720p): ~220 mA ≈ **1.1 W**
-> - Logitech **C920** (1080p): rated 500 mA; its *H.264 encoder alone* is quoted at **~1 W**
-> - FLIR **Firefly** (USB3 machine vision, continuous streaming): **1.5 W**
-> - USB 2.0 hard ceiling: 500 mA = **2.5 W**
->
-> **A sanity check that cuts the other way:** the *entire* Pi Zero 2 W system — Linux, SoC, ISP
-> doing demosaic and denoise, camera, SD, WiFi — peaks at 250–300 mA, i.e. **1.25–1.5 W**. A UVC
-> module doing strictly less imaging work than that should not cost more.
->
-> The reason it plausibly does is packaging, not physics. **Webcams are not power-optimised** —
-> there is 500 mA on the bus and no battery anywhere. The Pi's ISP is a block inside an SoC that is
-> *already powered*, so its **marginal** cost is small; a UVC module pays **full freight** for a
-> standalone ISP/bridge ASIC on an older node, with its own PMIC, crystal and regulator losses.
->
-> **Consequence: the qualitative conclusion below is directional, not settled.** At the optimistic
-> end the MCU path wins at every interval including 2–5 s; at the pessimistic end it loses until
-> past 15 s. Measure `P_cam` and `t_on` before believing either.
+> **The plausible range spans a factor of five in per-frame energy**, and every runtime figure below
+> scales with it. Measure it first — §8.
 
-### Static versus dynamic — why `t_on` is the term that matters
-
-A natural question: does `P_cam` scale with frame rate, or is there a large fixed cost to simply
-having the camera powered? The evidence points to **a substantial static floor**.
+### Static versus dynamic — why `t_on` is what matters
 
 | Scales with frame rate | Fixed while powered |
 |---|---|
@@ -152,189 +241,250 @@ having the camera powered? The evidence points to **a substantial static floor**
 | JPEG encode | Regulator quiescent current, leakage |
 | USB transfer | DDR refresh, where the bridge has a frame buffer |
 
-The one direct measurement found is suggestive: an older test reported **current consumption did not
-vary between 352×288 and 640×480 capture**. If tripling the pixel count doesn't move the needle, the
-dynamic term was not dominant on that device.
+The evidence points to **a substantial static floor**. One direct measurement found current
+consumption did not vary between 352×288 and 640×480 capture — if tripling the pixel count doesn't
+move the needle, the dynamic term isn't dominant. Structurally that fits: a webcam bridge ASIC is
+designed to run 30 fps forever, with little incentive for aggressive clock gating, and sensor bias
+circuits draw whenever powered regardless of readout rate.
 
-Structurally that is unsurprising. A webcam bridge ASIC is designed to run 30 fps video
-indefinitely; there is little commercial incentive to implement aggressive clock gating, and sensor
-analog bias circuits draw whenever the sensor is powered regardless of readout rate.
+> **The decimation trap.** Requesting a low frame rate over UVC often just makes the bridge *drop*
+> frames while the sensor keeps reading out at full rate. You would save the USB transfer and
+> nothing else. Whether a camera extends vertical blanking (a real saving) or decimates is not
+> knowable from a datasheet.
 
-> **The decimation trap.** Even when you request a low frame rate over UVC, many bridges implement
-> it by *dropping frames* — the sensor continues reading out at full rate. You would save the USB
-> transfer and nothing else. Whether a given camera extends vertical blanking (a real saving) or
-> simply decimates is not knowable from a datasheet.
+**Consequence: the only lever that matters is shortening or eliminating `t_on`.** Frame rate is not
+a useful knob here.
 
-**This is why the model is so sensitive to `t_on` and barely to anything else.** For a timelapse the
-camera isn't run slowly, it's power-cycled — so frame rate only applies to the ~1–2 s window it is
-awake, during which it boots and streams at its default rate while we keep one frame in forty. Boot
-plus static cost *is* the per-frame energy.
+### The suspend lever
 
-### The lever this exposes: USB selective suspend
-
-If the static floor dominates, the win is not running slower — it is **not booting at all**.
-
-Leave the camera enumerated and **suspended** between frames rather than cutting its power:
+If the static floor dominates, the win is not running slower — it is **not booting at all**. Leave
+the camera enumerated and **suspended** between frames rather than cutting its power:
 
 | | Power-cycled | Suspended |
 |---|---|---|
 | Between frames | 0 W | **≤2.5 mA ≈ 12 mW** (USB spec cap) |
-| Wake to first frame | `t_on` = 1–2.5 s (full ISP boot) | resume ≈ **20 ms** per spec |
+| Wake to first frame | 1–2.5 s (full ISP boot) | resume ≈ **20 ms** per spec |
 | Per-frame energy | 1.5–7.4 J | potentially **~0.6 J** |
 
-If resume-plus-capture were 0.3 s at 2 W, that is **0.6 J against 3.6 J — a 6× improvement**, which
-would push the crossover below one second and make the MCU path win at *every* interval, sunsets
-included. It would change this architecture from a long-interval specialist into the better option
-outright.
+A 6× improvement, which would make this architecture comfortably the best option at every interval.
 
-> **The catch is real.** Linux's `uvcvideo` driver enables USB autosuspend by default, but per the
-> maintainers, **"many cameras, including most Logitech UVC webcams, can't resume correctly from USB
-> suspend"** — symptoms being large stream-start delays or corrupted video. Support is
-> device-dependent and frequently broken.
+> **The catch is real.** Linux's `uvcvideo` enables autosuspend by default, but per the maintainers
+> **"many cameras, including most Logitech UVC webcams, can't resume correctly from USB suspend"** —
+> large stream-start delays or corrupted video. Device-dependent and frequently broken. Test it.
 
-That makes suspend behaviour the **third thing to test**, and arguably the highest-leverage of the
-three: `P_cam` sets the crossover, exposure control decides whether the path is usable at all, and
-suspend decides whether it is merely competitive or clearly better.
+### Runtime
 
-### Runtime, on the same 25.9 Wh pack
+On 25.9 Wh of cells, 22.8 Wh at the rail, using the pessimistic `E_uvc` = 4.5 J:
 
-Using the **pessimistic** case (`E_uvc` = 4.5 J), against 22.8 Wh at the rail. Note this is the
-column that flatters the Pi — the optimistic case moves every MCU figure up by roughly 3×:
+| Interval | Tier C (MCU) | Tier B (SBC) |
+|---|---|---|
+| 2 s | 10.1 h | 6.9 h |
+| 5 s | 25.3 h | 10.3 h |
+| 10 s | 50.6 h | 12.3 h |
+| 30 s | **151.9 h** | 14.1 h |
+| 60 s | **303.9 h** | 14.6 h |
 
-| Interval | Pi Zero 2 W | Tier C (MCU) | Tier B (SBC) | Winner |
-|---|---|---|---|---|
-| 2 s | **22.5 h** | 10.1 h | 6.9 h | Pi, 2.2× |
-| 5 s | **35.6 h** | 25.3 h | 10.3 h | Pi, 1.4× |
-| 10 s | 44.3 h | **50.6 h** | 12.3 h | MCU, 1.1× |
-| 15 s | 48.2 h | **76.0 h** | 13.1 h | MCU, 1.6× |
-| 30 s | 52.8 h | **151.9 h** | 14.1 h | MCU, 2.9× |
-| 60 s | 55.5 h | **303.9 h** | 14.6 h | **MCU, 5.5×** |
+Two things to read off this. **Tier C scales with interval and tier B does not** — the SBC's idle
+floor swamps everything, so it plateaus around 14 h no matter how long you wait between frames.
+And on the optimistic `E_uvc` = 1.53 J, every tier C figure roughly **triples**: 74 h at 5 s, 894 h
+at 60 s.
 
-Two conclusions, the first heavily caveated by the `P_cam` uncertainty above:
+**Both comfortably clear the 6–12 h requirement.** The question is whether you want a device that
+shoots for a day or one that shoots for a fortnight.
 
-**At 2–5 s the Pi probably wins — but this is the least certain claim here.** It holds if `P_cam`
-is near 2 W; it reverses entirely if the module is closer to 1 W. The mechanism is sound in either
-case: the camera's boot cost is paid every frame while the Pi's idle floor amortises across the
-wait, which is the same shape as the ESP32-P4 and Luckfox analyses. Only the crossover point is in
-doubt — but it is in doubt *precisely where this project operates*.
+### Standby
 
-**Past ~10 s the MCU path wins, and by 60 s it wins by 5×** — twelve days of shooting on one pack.
-That is a genuinely different device: multi-week deployments, seasonal timelapses, construction
-sites.
+| | Tier B | Tier C |
+|---|---|---|
+| RTC on backup | 1–3 µA (DS3231) | onboard, ~10 µA |
+| Host | 0 — rail cut by P-FET | deep sleep, ~20 µA |
+| Camera | 0 — rail cut | 0 — rail cut |
+| Pack protection | ~5 µA | ~5 µA |
+| **Total** | **≈ 10–30 µA** | **≈ 35 µA** |
 
-**Tier B never wins on power** — it is strictly worse than the Pi at every interval. Its case is
-availability, not efficiency.
+Both are limited by the cells' own self-discharge (~2.5 %/month), not the circuit. Weeks of standby
+is free provided the camera and host rails are genuinely switched off, not merely idle.
 
----
+### Over-discharge
 
-## 4. Camera options
+Three layers, and only one is useful:
 
-The UVC ecosystem is built around **surveillance** sensors, which is fortunate: they are designed
-for low light and wide dynamic range, exactly the qualities a sunset needs. Sony's **STARVIS 2**
-generation is the current best.
+| Layer | Trips at | Effect |
+|---|---|---|
+| **Software graceful shutdown** | ~3.1 V | clean halt, filesystem intact, cycle life preserved |
+| Boost converter cutoff | ~2.9 V | nothing useful — it stops |
+| Cell protection PCB | ~2.5 V | prevents cell damage |
 
-| Sensor | Format | Resolution | Pixel | Pixel area | Sensor area | vs IMX708 |
-|---|---|---|---|---|---|---|
-| IMX415 | 1/2.8" | 3864×2192 | 1.45 µm | 2.10 µm² | 17.8 mm² | **−0.4 stops** |
-| *IMX708 (current)* | *1/2.43"* | *4608×2592* | *1.40 µm* | *1.96 µm²* | *23.4 mm²* | *—* |
-| **IMX678** | 1/1.8" | 3840×2160 | 2.00 µm | 4.00 µm² | 33.2 mm² | **+0.5 stops** |
-| **IMX585** | **1/1.2"** | 3856×2180 | **2.90 µm** | **8.41 µm²** | **70.7 mm²** | **+1.6 stops** |
-
-**IMX585 is the standout.** It has **1.6 stops more sensor area and 4.3× the pixel area** of the
-current choice — a larger jump than any option in [SENSORS.md](SENSORS.md) short of Micro Four
-Thirds, and it comes pre-tuned in a box. For a device whose hardest problem is the dark end of a
-sunset ramp, that is a serious upgrade.
-
-**IMX415 is a trap.** It is the most common 4K UVC sensor and it is *worse* than what you already
-have — higher pixel density, smaller optical format, weaker low light. Do not pick it by
-resolution alone.
-
-The cost is crop room: all of these are 3840–3864 px wide, i.e. **4K with nothing spare**, against
-the IMX708's 4608 px and its ~20 % margin. Trading 20 % crop for 1.6 stops is defensible for sunset
-work, but it is a real trade and it should be a deliberate one.
-
-Modules exist from **Arducam** (IMX678 in both USB 2.0 and USB 3.0, IMX585 USB 3.0 with C-mount),
-**e-con Systems** (IMX415, IMX678), and cheaper generic vendors.
-
-### Pick USB 2.0, not USB 3.0
-
-Counter-intuitive but important. USB 3.0 is needed for *4K video at high frame rates or
-uncompressed*. **A timelapse needs one still frame at a time**, and MJPEG over USB 2.0 High Speed
-moves a 2 MB frame in ~50 ms.
-
-Choosing USB 2.0 buys three things: the power ceiling halves from 4.5 W to **2.5 W**, the transfer
-term stays negligible, and **the ESP32-P4 remains a viable host** — its USB is 2.0 High Speed, so a
-USB 3.0 camera would rule out tier C entirely.
+The boost quits *above* the protection threshold, so in normal operation the cell protection never
+activates. **Graceful shutdown is mandatory in software.** And whichever host you choose must clear
+its wake alarm when halting on low battery, or it will wake onto a flat pack, discover the problem,
+halt, and repeat until the cells reach protection cutoff.
 
 ---
 
-## 5. The open risk — exposure control
+## Storage
 
-This is the one thing that decides whether the architecture is real, and it cannot be resolved by
-reading datasheets.
+At 4K JPEG q80, roughly 2.2 MB a frame. The card is emptied at every recharge and the battery binds
+within a charge, so it need only hold **one full charge's worth of frames**.
 
-The entire sunset strategy depends on **fine, repeatable, manual exposure** with auto-exposure
-genuinely disabled — capped steps of ≤1/6 stop per frame, applied predictably. UVC does define
-`CT_EXPOSURE_TIME_ABSOLUTE` in 100 µs units along with a manual exposure mode, so it is possible in
-principle. But whether a given module implements it, honours it repeatably, and doesn't let its ISP
-quietly override it varies enormously between vendors.
+| Interval | Frames per charge (tier C) | at q80 |
+|---|---|---|
+| 2 s | 18,200 | 40 GB |
+| 5 s | 18,200 | 40 GB |
+| 10 s | 18,200 | 40 GB |
+| 30 s | 18,200 | 40 GB |
 
-**This is the same wall that disqualified the Arducam Mega and the generic UVC modules.** Reputable
-vendors (e-con, Arducam) document their controls properly; cheap modules are a lottery.
+Note the flat column: for tier C, energy per frame is constant, so **the number of frames per charge
+is independent of interval** — roughly 22.8 Wh ÷ 4.5 J ≈ 18,200 frames. That is a different shape
+from the Pi build, where a fixed idle floor makes short intervals cost more frames' worth of energy.
 
-### The test that decides it
+**128 GB is ample** — 40 GB at the pessimistic energy figure, or ~120 GB on the optimistic one where
+you get 3× the frames. `storage.py` should still pick JPEG quality against a session budget so a
+long deployment degrades gracefully rather than filling the card mid-run.
 
-Buy **one** module — €50–90 — and before anything else:
+---
 
-0. **Measure `P_cam` and `t_on` first** — inline meter on the USB 5 V line, from plug-in to first
-   valid frame. Five minutes, and it resolves the largest uncertainty in the model.
-0b. **Test USB suspend.** Let `uvcvideo` autosuspend the device, measure the suspended current, then
-   time resume-to-first-valid-frame and inspect that frame for corruption. Clean suspend/resume is
-   worth more than any other optimisation here; broken resume means falling back to power-cycling.
+## Enclosure
+
+- **Optical window: a screw-in 37 mm UV filter**, not cut acrylic. Flat, coated, cleanable,
+  replaceable, already round. Bond over the hole with an O-ring.
+- Lens close to the glass with a **black felt collar** in the gap, or internal reflections ghost
+  across any bright sky.
+- **One window only.** The illuminated button is the status indicator.
+- **Silica gel plus a PTFE vent plug.** A sealed box that goes out warm and cools overnight fogs
+  from the inside, and you find out on the footage.
+- **No external ports.** The SD card already forces opening, so a charging port would mean
+  maintaining a second sealing interface to avoid a step you still have to perform.
+- **Design it to be opened:** captive fasteners rather than droppable screws, an O-ring in a groove
+  rather than adhesive foam, a lid that only fits one way, reachable desiccant, and a lid that
+  opens away from the lens window.
+- 1/4"-20 insert in the base. A **clamp beats a tripod** for leaving something somewhere.
+
+> **Size check before committing.** A USB camera module plus its lens is bulkier than a Pi camera,
+> and the **IMX585 C-mount option is substantially bigger** — likely a ~40 mm board with a 30 mm
+> lens barrel, which needs both a larger box and a larger window than the 37 mm filter. Model the
+> chosen module before printing.
+
+---
+
+## Software outline
+
+Python on tier B; C/ESP-IDF on tier C. The imaging layer is thin because the camera does the work.
+
+- `camera.py` — open the UVC device, **disable auto-exposure and auto-white-balance**, set
+  `exposure_time_absolute` explicitly, grab one MJPEG frame. No demosaic, no tuning, no 3A.
+- `scheduler.py` — **monotonic deadlines, not `sleep(interval)`**, or capture time accumulates as
+  drift. Model a session as a **list of windows**, not a single start/stop.
+- `ramp.py` — a sunset spans ~10 stops; naive auto-exposure strobes. Measure mean luma, correct by
+  a **capped step of ≤1/6 stop per frame**. Shutter first to a motion-blur cap, then gain.
+- `storage.py` — write `NNNNNN.jpg.tmp`, fsync, rename, fsync the directory. Power loss costs at
+  most one frame. Log exposure, gain and lux per frame to `frames.csv`. Owns the storage budget.
+- `power.py` — RTC alarm, low-voltage threshold, recovery threshold, and clearing the alarm when
+  halting flat.
+- `status.py` — button press durations and LED blink codes.
+- `web.py` — the settings page, served only while the AP is up.
+- Laptop side: `ffmpeg` with `deflicker=mode=pm:size=10`, driven by `frames.csv`.
+
+**The exposure ramp is the hard part and it depends entirely on §8's first test.** Everything else
+is plumbing.
+
+---
+
+## The three open measurements
+
+**Buy one camera module — €110 — and run these before anything else.** They cost an evening and
+they determine whether this build is viable, competitive, or dead.
+
+### 1. Exposure control — decides whether the path works at all
+
+The entire sunset strategy needs fine, repeatable manual exposure with AE genuinely off. UVC defines
+`CT_EXPOSURE_TIME_ABSOLUTE` in 100 µs units with a manual mode, so it is possible in principle —
+but whether a module implements it, honours it repeatably, and doesn't let its ISP override you
+varies enormously.
+
 1. Disable auto-exposure and auto-white-balance via v4l2 controls.
 2. Set `exposure_time_absolute` across a series of known values spanning several stops.
 3. Photograph a static, evenly lit scene at each.
 4. Plot mean luma against commanded exposure.
 
-**You want a straight line, and you want the same value to give the same result on a repeat run.**
-Curvature is survivable with a calibration table; hysteresis, quantisation into a handful of steps,
+**You want a straight line, and the same value must give the same result on a repeat run.**
+Curvature is survivable with a calibration table. Hysteresis, quantisation into a handful of steps,
 or the ISP overriding you is fatal.
 
-That is an evening's work and it either opens this entire path or closes it.
+### 2. `P_cam` and `t_on` — decides whether it is competitive
+
+Inline meter on the USB 5 V line. Measure steady draw while streaming, and time plug-in to first
+valid frame. Five minutes, and it resolves the largest uncertainty in the power model.
+
+### 3. USB suspend — decides whether it is clearly better
+
+Let the driver autosuspend the device, measure the suspended current, then time resume-to-first-
+valid-frame and inspect that frame for corruption. Clean suspend eliminates the dominant energy
+term. Broken resume means falling back to power-cycling.
 
 ---
 
-## 6. Where each architecture wins
+## Order of work
 
-Neither is strictly better. They win in different places, and they are at different stages of
-validation.
+**Phase 0 — the three measurements above**, on one module, before buying anything else. If exposure
+control fails, this architecture is dead and you have spent €110 finding out.
 
-| | Pi build | UVC build |
-|---|---|---|
-| **Status** | numbers settled, BOM complete | **three measurements outstanding** |
-| **Sourcing** | blocked by the Zero 2 W shortage | components in stock |
-| **2–5 s intervals** | probably wins — but see the `P_cam` caveat | possibly wins if `P_cam` is low or suspend works |
-| **>30 s intervals** | 53 h | **152–900 h** — no contest |
-| **Best sensor available** | IMX708, or IMX477 for the lens mount | **IMX585, +1.6 stops** |
-| **Crop room at 4K** | ~20 % margin | none |
-| **Software** | picamera2, well-trodden | v4l2 (tier B) or ESP-IDF firmware (tier C) |
+**Phase 1 — capture and ramp.** Interval accuracy, locked exposure, atomic writes, metadata log.
 
-**Pick the Pi build** if you can source a Zero 2 W and shoot mostly at 2–5 s intervals. It is the
-known quantity: every number in its document is either measured or has a documented path to being
-measured, and the software is the well-trodden one.
+**Phase 2 — exposure ramping** against a real sunset.
 
-**Pick the UVC build** if the Pi stays unobtainable, if you want multi-week deployments at long
-intervals, or if the low-light gain matters more than crop room. **IMX585 offers 1.6 stops and 4.3×
-the pixel area of the IMX708** — pre-tuned, in a box, and available today. That is the single
-biggest image-quality upgrade identified anywhere in this project.
+**Phase 3 — power.** Host selection, rail switching, RTC wake, low-voltage and recovery thresholds.
+Prove them by running a session to empty.
 
-**What would settle it:** the three tests in §5, on one module, in one evening. `P_cam` fixes the
-crossover, exposure control decides whether the path is usable at all, and suspend decides whether
-it is merely competitive or clearly better. Until those are run, this document is a well-researched
-hypothesis and the Pi build is a plan.
+**Phase 4 — AP config page, button, blink codes.**
 
-And regardless of which wins: **if a Raspberry Pi-compatible module with a STARVIS 2 sensor and Pi
-tuning ever appears, it is the best of both** and should be adopted immediately.
+**Phase 5 — enclosure and an unattended overnight run in real weather.**
+
+---
+
+## Verification
+
+| What | How |
+|---|---|
+| Exposure linearity | Luma vs commanded exposure, twice, looking for hysteresis |
+| `P_cam`, `t_on` | Inline USB meter; plug-in to first valid frame |
+| Suspend behaviour | Suspended current, resume time, first-frame integrity |
+| Image quality | A real sunset sequence, at 100 % and as a 4K frame |
+| Interval accuracy | `frames.csv` timestamps — stddev of deltas under 50 ms |
+| Session power | Meter across 1 h at the real interval |
+| Standby power | µA meter on the pack over 24 h with rails cut |
+| Low-voltage shutdown | Run to threshold; must halt cleanly and not re-wake flat |
+| Shutdown safety | 50 forced power-cuts mid-capture; card mounts clean every time |
+| Weatherproofing | Overnight outdoors in rain; inspect the window for condensation |
+
+---
+
+## Known risks
+
+| Risk | Mitigation |
+|---|---|
+| **Exposure control unusable** | Test 1, before any other spending. No workaround if it fails |
+| `P_cam` far above estimate | Test 2; tier C degrades gracefully since energy scales with interval |
+| USB suspend broken | Test 3; fall back to power-cycling, which is the assumed baseline anyway |
+| No crop room at 4K | Deliberate trade for low light. Frame carefully in the field |
+| IMX585 forces USB 3.0 and an SBC host | Choose sensor and host together; IMX678 keeps tier C open |
+| Camera module bulk breaks the enclosure | Model the module before printing; C-mount especially |
+| Flat pack re-wakes and drains to protection | Clear the wake alarm when halting on low battery |
+| UVC vendor quirks | Prefer documented vendors (e-con, Arducam) over generic modules |
+
+---
+
+## Relationship to the Pi build
+
+[PI-BUILD.md](PI-BUILD.md) solves the same problem with a Raspberry Pi and its own tuned ISP. It is
+cheaper (~€175), its numbers are settled, and at 2–5 s intervals it is probably more efficient. Its
+weakness is that it depends on a board that spent much of 2026 unobtainable.
+
+This build costs more and carries three open questions, but it sources today, offers a materially
+better sensor, and — in tier C — scales to multi-week deployments the Pi cannot approach.
+
+If a Raspberry Pi-compatible module with a STARVIS 2 sensor and Pi tuning ever appears, it would be
+the best of both, and should be adopted immediately.
 
 ---
 
@@ -345,6 +495,6 @@ tuning ever appears, it is the best of both** and should be adopted immediately.
 - [Arducam — IMX678 STARVIS 2 USB 2.0 UVC module](https://www.arducam.com/ultra-low-light-usb2-0-camera-module-8-3mp-4k-wide-angle-sony-starvis-2-imx678-uvc-plug-n-play-ideal-for-surveillance-night-vision.html)
 - [Arducam — IMX585 STARVIS 2 USB 3.0 module with C-mount](https://www.arducam.com/presalesarducam-8-3mp-imx585-manual-focus-usb-3-0-camera-module-with-16mm-c-mount-lens.html)
 - [IMX678 vs IMX585 selection guide](https://www.cameramodule.com/info/two-giants-of-sony-starvis2-core-differences-103291125.html)
-- [What is a UVC camera — Edge AI and Vision Alliance](https://www.edge-ai-vision.com/2022/08/what-is-a-uvc-camera-and-what-are-the-different-types-of-uvc-cameras/)
+- [Linux UVC driver FAQ — autosuspend and resume problems](https://www.ideasonboard.org/uvc/faq/)
 - [USB webcam power draw on a Raspberry Pi 4 — forum measurements](https://forums.raspberrypi.com/viewtopic.php?t=343144)
-- [Logitech H.264 encoding white paper (C920 encoder power)](https://www.logitech.com/assets/45120/logitechh.pdf)
+- [What is a UVC camera — Edge AI and Vision Alliance](https://www.edge-ai-vision.com/2022/08/what-is-a-uvc-camera-and-what-are-the-different-types-of-uvc-cameras/)

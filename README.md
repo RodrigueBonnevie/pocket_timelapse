@@ -15,7 +15,7 @@ the software all come from Phase 0 measurements on real hardware.
 | | |
 |---|---|
 | **[PI-BUILD.md](PI-BUILD.md)** | **Architecture 1 — Raspberry Pi.** The more settled of the two. Every choice, why it was made, what was rejected, and the measurements that still need taking |
-| **[UVC-BUILD.md](UVC-BUILD.md)** | **Architecture 2 — UVC camera.** Puts the tuned ISP in the camera, so the host needn't be a Pi. A materially better sensor, and three measurements standing between it and a buildable BOM |
+| **[UVC-BUILD.md](UVC-BUILD.md)** | **Architecture 2 — UVC camera.** Buys the ISP tuning in the camera, so the host needn't be a Pi. Sources today, better sensor, scales to multi-week runs — with three measurements standing between it and a trusted BOM |
 | **[IMAGE-PIPELINE.md](IMAGE-PIPELINE.md)** | Background: what happens between photons and a JPEG, and why the camera dictates the board |
 | **[SENSORS.md](SENSORS.md)** | Background: the IMX range, why these sensors carry no ISP, what ISP *tuning* is and why it — not hardware — is the real constraint, and why a small sensor on a tripod is enough |
 
