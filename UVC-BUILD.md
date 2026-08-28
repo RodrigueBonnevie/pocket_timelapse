@@ -257,12 +257,14 @@ complexity bought for information the web page presents better.
 
 | Option | Sensor | Interface | ≈ EUR |
 |---|---|---|---|
-| **Default** | IMX678, M12 lens, board-level | USB 2.0 | **~110** |
-| Upgrade | IMX585 + C-mount lens | USB 3.0 | ~220 |
+| **Default** | IMX678, M12 lens, board-level | USB 2.0 | **~150** |
+| Alternative | IMX678 with enclosure | USB 3.0 | **199** (verified, Welectron) |
+| Upgrade | IMX585 + C-mount lens | USB 3.0 | ~250 |
 
-> **Camera prices are estimates, not verified quotes.** Arducam and e-con both list these modules
-> but pricing varies by region and lens. Confirm before budgeting — this is the single largest line
-> in the build.
+The €199 figure is a real listing — Arducam's IMX678 USB 3.0 module with enclosure at Welectron,
+who are in Germany, so EU with no customs. The USB 2.0 board-level variant should undercut it;
+confirm before ordering. **This is by far the largest line in the build**, and it is where the ISP
+tuning you are buying actually lives.
 
 ### Host
 
@@ -275,13 +277,14 @@ complexity bought for information the web page presents better.
 
 | Build | Total |
 |---|---|
-| **Tier C + IMX678** — lowest power | **≈ €258** |
-| Tier B + IMX678 — easiest software | ≈ €270 |
-| Tier B + IMX585 — best image quality | ≈ €380 |
+| **Tier C + IMX678 (USB 2.0)** — lowest power | **≈ €298** |
+| Tier B + IMX678 — easiest software | ≈ €310 |
+| Tier B + IMX585 — best image quality | ≈ €410 |
 
-**This is a more expensive build than the Pi architecture (~€175)**, and the camera is why. You are
-paying for someone else's ISP tuning, in a box. Whether that is worth €80–150 depends entirely on
-whether you can source a Raspberry Pi.
+**This is a substantially more expensive build than the Pi architecture (~€175)** — roughly double —
+and the camera is the entire difference. You are paying for someone else's ISP tuning, in a box.
+Whether that is worth €125–235 depends on whether you can source a Raspberry Pi, and on how much
+the better sensor is worth to you.
 
 ### Accessories — outside the box, reusable
 
@@ -290,6 +293,53 @@ whether you can source a Raspberry Pi.
 | 4-bay 18650 charger (Nitecore / XTAR) | ~2 A per cell, ~2 h | 25 |
 | Spare set of 2 protected 18650s | a second set is a second session | 22 |
 | USB power meter with Wh/mAh totaliser | **not optional** — §8 depends on it | 15 |
+
+### Buying a module — the ISP matters more than the sensor
+
+The same IMX678 appears behind completely different silicon, and **the ISP determines image quality
+far more than the sensor does**, because the tuning lives there. Two modules with identical sensor
+specs can be entirely different cameras.
+
+> **The bridge-versus-ISP trap.** The Cypress/Infineon **CX3** is a *MIPI-to-USB bridge, not an
+> ISP*, and it is commonly used in USB camera modules. Per Infineon's documentation: *"UVC does not
+> support RAW or RGB, and almost all MIPI CSI-2 cameras only output RAW Bayer"*, and raw *"needs to
+> be converted to a useable format before anything can be done with it. Integrated ISP chips
+> perform this conversion in hardware, while the CX3 requires external processing."*
+>
+> A module can therefore be "a USB camera with an IMX678" and carry **no meaningful ISP at all** —
+> in which case the host is back to demosaicing and this architecture's entire premise collapses.
+
+**The diagnostic is simple.** An IMX678 outputs raw Bayer. If a module genuinely delivers **MJPEG
+or YUY2 over UVC**, something on that board demosaiced it, so a real ISP is present. If the vendor
+leads with "raw" modes and a custom SDK rather than UVC compliance, it is a bridge — walk away.
+
+**Ask the vendor which ISP is fitted.** Named parts (Ambarella, iCatch, GEO, Sonix, Realtek) mean
+someone made a deliberate choice and probably tuned it. An unwilling or vague answer is itself an
+answer.
+
+| Tier | Vendors | ISP | Documentation |
+|---|---|---|---|
+| Professional | e-con, Leopard, Vadzo | tuned, named, specified | thorough |
+| Mid | Arducam | **varies by product — ask** | decent |
+| Generic | ELP, AliExpress | unknown, often unnamed | none |
+
+**Packaging also varies**, independently of the electronics: board-level with an M12 lens holder
+(what this build wants — smallest, cheapest), enclosed in a metal housing with a captive USB cable
+(bulkier, but weatherproof-ish and easier to mount), or MIPI-only with no USB at all (needs a host
+with a CSI input — not this architecture).
+
+Prefer **manual focus** where offered. Autofocus hunting between frames is a flicker source, and
+this camera never changes its subject distance.
+
+### Where to buy
+
+| Vendor | Region | Notes |
+|---|---|---|
+| **Welectron** | Germany | EU, no customs — €199 for the Arducam IMX678 USB 3.0 with enclosure |
+| Arducam direct | CN/US | full range, both USB 2.0 and 3.0, with and without enclosure |
+| e-con Systems | IN/US | professional tier, documented ISPs, higher prices |
+| Vadzo Imaging | IN | professional tier, including the automotive HDR modules |
+| RobotShop, Amazon | EU/US | resellers, variable stock |
 
 ### On lens choice
 
@@ -578,6 +628,7 @@ Prove them by running a session to empty.
 | Camera module bulk breaks the enclosure | Model the module before printing; C-mount especially |
 | Flat pack re-wakes and drains to protection | Clear the wake alarm when halting on low battery |
 | **Module outputs YUY2 only** | Check supported formats before ordering; kills tier C and adds host encode cost |
+| **Module is a bridge, not an ISP** | Confirm UVC MJPEG/YUY2 output and ask which ISP is fitted; a CX3-only board breaks the architecture |
 | UVC vendor quirks | Prefer documented vendors (e-con, Arducam, Vadzo) over generic modules |
 
 ---
@@ -610,6 +661,8 @@ the best of both, and should be adopted immediately.
 - [OmniVision OX03C10 — 140 dB HDR with LED flicker mitigation](https://www.ovt.com/press-releases/omnivision-launches-worlds-first-image-sensor-for-automotive-viewing-cameras-with-140-db-hdr-and-top-led-flicker-mitigation-performance/)
 - [Arducam 20 MP IMX283 USB 3.0 module with onboard ISP](https://www.arducam.com/arducam-20mp-usb-3-0-camera-module-with-16mm-c-mount-lens-b0477.html)
 - [Basler — colour processing and calibration in machine vision cameras](https://www.baslerweb.com/en-us/learning/color-calibration/)
+- [Infineon EZ-USB CX3 — MIPI CSI-2 to USB 3.0 bridge](https://www.infineon.com/products/universal-serial-bus/usb-3-2-peripheral-controllers/ez-usb-cx3-mipi-csi2-to-usb-5gbps-camera-controller)
+- [Welectron — Arducam IMX678 USB 3.0 module, €199](https://www.welectron.com/Arducam-B0497C-83MP-Sony-STARVIS-2-IMX678-Low-Light-Manual-Focus-USB-30-Camera-Module-With-Enclosure_1)
 - [OmniVision OX08B40 — 8.3 MP, 140 dB HDR, LFM](https://www.ovt.com/products/ox08b40/)
 - [e-con STURDeCAM88 — OX08B40 4K GMSL2 camera](https://www.e-consystems.com/gmsl-cameras/8mp-ox08b40-ip67-gmsl2-140db-hdr-camera.asp)
 - [e-con STURDeCAM84 — AR0823AT 4K, 150 dB HDR, GMSL2](https://www.e-consystems.com/automotive-cameras/4k-ar0823at-ip69k-gmsl2-150db-hdr-camera.asp)
