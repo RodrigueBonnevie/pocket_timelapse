@@ -352,9 +352,9 @@ this camera never changes its subject distance.
 
 | Module | Tier | Sensor | vs IMX708 | USB | MJPEG | **Manual exposure** | Price |
 |---|---|---|---|---|---|---|---|
-| **e-con e-CAM82_USB** | **pro** | IMX415 | −0.4 | **2.0** | ✅ | ✅ **documented** | quote |
+| **e-con e-CAM82_USB** | **pro** | IMX415 | −0.4 | **2.0** | ✅ | ✅ **datasheet** | quote |
 | Vadzo Merlin-415CRS | pro | IMX415 | −0.4 | **2.0** | likely | not published | quote |
-| Arducam IMX678 USB 2.0 | mid | IMX678 | **+0.5** | **2.0** | likely | not published | ~€150 |
+| Arducam IMX678 USB 2.0 | mid | IMX678 | **+0.5** | **2.0** | likely | ✅ **wiki**, 0.1–500 ms | ~€150 |
 | Arducam B0497C | mid | IMX678 | +0.5 | 3.0 | ✅ | not published | **€199** |
 | Arducam IMX585 C-mount | mid | IMX585 | **+1.6** | 3.0 | ✅ | not published | ~€250 |
 
@@ -363,6 +363,10 @@ that decides this build. e-con publish: USB **2.0** (so tier C stays open), *"Un
 Compressed MJPEG"* (the hard requirement, met), UVC controls including **"Exposure (Manual and
 Auto)"** — which is test 1, answered on paper — and an ISP *"tuned for achieving excellent image
 quality under various lighting conditions including near darkness (0.4 Lux)."*
+
+**Arducam also document manual exposure**, on their wiki rather than a datasheet, with a stated
+range of 0.1–500 ms. So the gap is narrower than vendor tier alone suggests — see "What can be
+determined before buying", including a documented failure report that partly offsets it.
 
 **Neither professional vendor publishes pricing.** Both are quote-on-request, so emailing them is
 unavoidable. Expect roughly $150–250 for this class; that is an estimate, not a quote.
@@ -708,6 +712,58 @@ is plumbing.
 **Buy one camera module — €110 — and run these before anything else.** They cost an evening and
 they determine whether this build is viable, competitive, or dead.
 
+### What can be determined before buying
+
+Most of it, as it turns out. UVC is a standard, so the control *vocabulary* is fixed — what varies
+is which subset a device implements, and vendors increasingly document that.
+
+| Route | What it yields |
+|---|---|
+| **Vendor wiki** | control names, ranges, units |
+| **Vendor forum** | real `v4l2-ctl` output from owners, and known failure reports |
+| **Pre-sales email** | authoritative answer for a specific part number |
+| UVC specification | the vocabulary; the device decides the subset |
+
+**Arducam document manual exposure.** Their UVC wiki gives `exposure_auto=1` for manual mode, then
+`exposure_absolute` with **min=1, max=5000, unit 0.1 ms** — a range of **0.1 ms to 500 ms**.
+
+#### That range against the ramp's requirements
+
+**12.3 stops of shutter range.** A sunset spans roughly 10 stops, so shutter alone nearly covers it
+with gain for the remainder. Comfortable.
+
+The *step* is the constraint, because `exposure_absolute` is an integer in absolute units while the
+ramp works in ratios:
+
+| Exposure | Value | Step size | Ramp viable? |
+|---|---|---|---|
+| 0.1 ms | 1 | **1.00 stop** | ✗ |
+| 0.5 ms | 5 | 0.26 stops | ✗ |
+| **0.9 ms** | **9** | **0.15 stops** | ✅ |
+| 5 ms | 50 | 0.03 stops | ✅ |
+| 100 ms | 1000 | 0.001 stops | ✅ |
+
+**The ≤1/6-stop ramp requirement is only met above ~0.9 ms.** Below that a single integer step
+exceeds a sixth of a stop and the exposure ladder becomes visibly chunky — precisely the flicker
+`ramp.py` exists to prevent.
+
+That constraint is close to biting. A bright sunset sky at f/2.8 wants roughly 1/1000 s = **1 ms**,
+right at the boundary. **An ND filter or a smaller aperture moves you into the safe region**, or you
+accept coarse steps during the brightest few minutes, which usually precede the interesting part.
+Either way it is a design input: **`ramp.py` should clamp the shutter at ~1 ms and use gain or ND
+below that**, rather than letting the ramp walk into the coarse region.
+
+> **A documented failure worth weighing.** The Arducam forum carries reports of controls that
+> `v4l2-ctl` **reports as set correctly but which have no effect on the image** — attributed
+> variously to USB hubs, kernel version mismatches and firmware, with one user noting older units
+> worked while newer ones did not. That is exactly the failure mode test 1 exists to catch,
+> documented as occurring on this vendor's UVC hardware. It does not disqualify them, but it is not
+> hypothetical either.
+
+**Caveat on the numbers above:** the 1–5000 range comes from Arducam's general UVC camera wiki,
+which may describe their adapter board rather than the IMX678 module specifically. Confirm for the
+exact part number before relying on it.
+
 ### 1. Exposure control — decides whether the path works at all
 
 The entire sunset strategy needs fine, repeatable manual exposure with AE genuinely off. UVC defines
@@ -790,6 +846,8 @@ Prove them by running a session to empty.
 | Module offers only H.264 compressed | Inter-frame compression forfeits deflicker, crop and re-grade — require MJPEG |
 | No UVC compression-quality control | `storage.py` loses its quality lever; budget by interval instead |
 | **Module is a bridge, not an ISP** | Confirm UVC MJPEG/YUY2 output and ask which ISP is fitted; a CX3-only board breaks the architecture |
+| Controls report as set but do nothing | Documented on Arducam's forum; test 1 catches it. Check USB hub and kernel version before blaming the camera |
+| Exposure quantisation below ~1 ms | Clamp shutter at ~1 ms in `ramp.py`; use gain or an ND filter below that |
 | UVC vendor quirks | Prefer documented vendors (e-con, Arducam, Vadzo) over generic modules |
 
 ---
