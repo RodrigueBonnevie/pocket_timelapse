@@ -756,8 +756,30 @@ you get 3× the frames.
 
 Python on tier B; C/ESP-IDF on tier C. The imaging layer is thin because the camera does the work.
 
-- `camera.py` — open the UVC device, **disable auto-exposure and auto-white-balance**, set
-  `exposure_time_absolute` explicitly, grab one MJPEG frame. No demosaic, no tuning, no 3A.
+- **`camera.py`** — the only module that touches hardware, and **where all four open measurements
+  land**. Everything else in this list is hardware-agnostic, so design this one as a strategy
+  interface and let the Phase 0 results select an implementation rather than forcing a rewrite.
+
+  *Capture:* open the device by **stable path** (`/dev/v4l/by-id/...`, never `/dev/videoN`, which
+  moves across re-enumeration). Disable auto-exposure and auto-white-balance. Set
+  `exposure_time_absolute` explicitly, **clamped at ~1 ms** — below that the integer quantisation
+  exceeds the ramp's 1/6-stop step, so use gain or an ND filter instead. Request the **highest
+  advertised frame rate**, not the lowest: `t_on` is what costs energy, and a faster stream clears
+  the settling frames sooner. Discard a **measured** number of settling frames rather than trusting
+  the first. Grab one MJPEG frame, verify it opens as a JPEG, and get the camera out of the way.
+
+  *Idle strategy — one of four, chosen by measurement:*
+
+  | Strategy | Mechanism | Selected if |
+  |---|---|---|
+  | `suspend` | USB autosuspend between frames | test 3 shows clean resume |
+  | `power_cycle` | cut the camera rail via load switch | test 4 shows reliable re-enumeration |
+  | `streamoff` | `VIDIOC_STREAMOFF`, device stays enumerated | either of the above proves flaky |
+  | `always_on` | leave it streaming | everything else fails; ~12 h floor |
+
+  Implement `streamoff` **first** — it is the lowest-risk of the four and the safe fallback, so it
+  makes a working baseline before the riskier strategies are attempted. Retry enumeration with
+  backoff, and treat a failed capture as a dropped frame rather than a failed session.
 - `scheduler.py` — **monotonic deadlines, not `sleep(interval)`**, or capture time accumulates as
   drift. Model a session as a **list of windows**, not a single start/stop.
 - `ramp.py` — a sunset spans ~10 stops; naive auto-exposure strobes. Measure mean luma, correct by
@@ -771,7 +793,8 @@ Python on tier B; C/ESP-IDF on tier C. The imaging layer is thin because the cam
 - Laptop side: `ffmpeg` with `deflicker=mode=pm:size=10`, driven by `frames.csv`.
 
 **The exposure ramp is the hard part and it depends entirely on §8's first test.** Everything else
-is plumbing.
+is plumbing — and note that the plumbing is deliberately isolated from the hardware, so a
+disappointing Phase 0 changes `camera.py` and nothing else.
 
 ---
 
