@@ -333,14 +333,22 @@ this camera never changes its subject distance.
 
 ### Candidates
 
-| Module | Vendor tier | Sensor | vs IMX708 | Interface | Tier C? |
-|---|---|---|---|---|---|
-| **Arducam IMX678 USB 2.0** | mid | IMX678 | **+0.5** | USB 2.0 | ✅ |
-| Arducam B0497C (€199) | mid | IMX678 | +0.5 | USB 3.0 | ✗ |
-| Arducam IMX585 C-mount | mid | IMX585 | **+1.6** | USB 3.0 | ✗ |
-| **e-con e-CAM82_USB** | **professional** | IMX415 | −0.4 | USB | ✅ |
-| **Vadzo Merlin-415CRS** | **professional** | IMX415 | −0.4 | USB 2.0 | ✅ |
-| Vadzo Falcon-415CRS | professional | IMX415 | −0.4 | USB 3.0 | ✗ |
+| Module | Tier | Sensor | vs IMX708 | USB | MJPEG | **Manual exposure** | Price |
+|---|---|---|---|---|---|---|---|
+| **e-con e-CAM82_USB** | **pro** | IMX415 | −0.4 | **2.0** | ✅ | ✅ **documented** | quote |
+| Vadzo Merlin-415CRS | pro | IMX415 | −0.4 | **2.0** | likely | not published | quote |
+| Arducam IMX678 USB 2.0 | mid | IMX678 | **+0.5** | **2.0** | likely | not published | ~€150 |
+| Arducam B0497C | mid | IMX678 | +0.5 | 3.0 | ✅ | not published | **€199** |
+| Arducam IMX585 C-mount | mid | IMX585 | **+1.6** | 3.0 | ✅ | not published | ~€250 |
+
+**Leading candidate: e-con e-CAM82_USB.** It is the only module whose datasheet answers the question
+that decides this build. e-con publish: USB **2.0** (so tier C stays open), *"Uncompressed YUY2 and
+Compressed MJPEG"* (the hard requirement, met), UVC controls including **"Exposure (Manual and
+Auto)"** — which is test 1, answered on paper — and an ISP *"tuned for achieving excellent image
+quality under various lighting conditions including near darkness (0.4 Lux)."*
+
+**Neither professional vendor publishes pricing.** Both are quote-on-request, so emailing them is
+unavoidable. Expect roughly $150–250 for this class; that is an estimate, not a quote.
 
 **The professional vendors have not put the good sensors on USB.** e-con's entire USB STARVIS range
 is IMX462 (2 MP), IMX415 (4 MP) and IMX662 (2 MP); their IMX678 and IMX585 are MIPI, GigE, GMSL2 and
@@ -383,6 +391,36 @@ JPEG encoder. Confirm in the format list, but the arithmetic makes it hard to av
 **"Proprietary" means unverifiable.** No named silicon, and having AE and AWB *blocks* says nothing
 about whether the CCM was calibrated against this sensor or inherited from a template. That only
 shows up in pictures.
+
+### Could a better ISP beat a bigger sensor?
+
+A reasonable hypothesis: the professional IMX415 modules have better ISPs, so might they outperform
+the mid-tier IMX678 despite 0.9 stops less sensor area? **Plausible, but less likely than it looks —
+for a reason specific to how this project uses the camera.**
+
+**The ISP cannot create photons.** At equal exposure the IMX678 collects 1.87× the light, giving
+~1.37× better SNR in shot-noise terms. No processing recovers that.
+
+**But this application disables the ISP's best parts.** The blocks that separate a good ISP from a
+mediocre one in normal use are the **3A algorithms — auto-exposure and auto-white-balance — and both
+are switched off here by design.** What remains active is demosaic, black level, CCM, gamma, lens
+shading and noise reduction.
+
+Of those, the ones that genuinely differ between vendors are **lens shading** (Arducam's published
+block list omits it, so expect uncorrected vignetting) and **CCM calibration**. Both are
+**correctable in post**: a single flat-field frame fixes shading, a colour profile fixes the matrix —
+and every sequence is post-processed regardless.
+
+So the comparison is symmetric, and both advantages evaporate:
+
+| | Advantage | Recoverable by |
+|---|---|---|
+| Bigger sensor | 0.9 stops of SNR | **exposure time** — free on a tripod |
+| Better ISP | lens shading, colour accuracy | **post-processing** — already in the pipeline |
+
+**Neither is the deciding factor.** They are far closer than either spec sheet suggests, and the
+choice should turn on something else entirely — which is why the recommendation lands on documented
+exposure control rather than on sensor size or ISP reputation.
 
 ### Does the dynamic range difference actually matter?
 
