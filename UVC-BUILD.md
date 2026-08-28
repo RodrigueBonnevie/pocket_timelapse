@@ -331,6 +331,99 @@ with a CSI input — not this architecture).
 Prefer **manual focus** where offered. Autofocus hunting between frames is a flicker source, and
 this camera never changes its subject distance.
 
+### Candidates
+
+| Module | Vendor tier | Sensor | vs IMX708 | Interface | Tier C? |
+|---|---|---|---|---|---|
+| **Arducam IMX678 USB 2.0** | mid | IMX678 | **+0.5** | USB 2.0 | ✅ |
+| Arducam B0497C (€199) | mid | IMX678 | +0.5 | USB 3.0 | ✗ |
+| Arducam IMX585 C-mount | mid | IMX585 | **+1.6** | USB 3.0 | ✗ |
+| **e-con e-CAM82_USB** | **professional** | IMX415 | −0.4 | USB | ✅ |
+| **Vadzo Merlin-415CRS** | **professional** | IMX415 | −0.4 | USB 2.0 | ✅ |
+| Vadzo Falcon-415CRS | professional | IMX415 | −0.4 | USB 3.0 | ✗ |
+
+**The professional vendors have not put the good sensors on USB.** e-con's entire USB STARVIS range
+is IMX462 (2 MP), IMX415 (4 MP) and IMX662 (2 MP); their IMX678 and IMX585 are MIPI, GigE, GMSL2 and
+Holoscan only. Vadzo is the same shape — USB tops out at IMX415, and their IMX678 (Innova-678CRS) is
+GigE. So the choice is a better sensor from a mid-tier vendor, or a better-documented vendor with a
+smaller sensor.
+
+**Worth an email before deciding.** e-con and Vadzo are B2B companies doing OEM work, and they
+clearly have the IMX678 integrated already — it is on their MIPI and GigE boards. Asking whether a
+USB variant exists, is planned, or could be quoted costs nothing and might surface exactly the part
+this project wants.
+
+### What is actually inside the Arducam module
+
+The [bridge-versus-ISP trap](#buying-a-module--the-isp-matters-more-than-the-sensor) does **not**
+apply here. Arducam document a real pipeline on the IMX678 and IMX585 USB modules:
+
+> *"onboard ISP with proprietary technologies such as **de-Bayer, gamma, BLC, AE, AWB, CCM, and
+> RGB2YUV**"* — described as *"Arducam's proprietary ISP crafted through extensive research and
+> development."*
+
+Demosaic, black level correction, gamma, colour correction matrix, and a working 3A loop. This is
+not a CX3 passthrough.
+
+Three observations, one of which is in this project's favour:
+
+**It is a basic pipeline.** The listed blocks stop at RGB2YUV — no noise reduction, no lens shading
+correction, no sharpening. A full surveillance ISP would carry multi-frame NR, LSC and HDR fusion.
+
+**For timelapse that is arguably better.** Heavy baked-in denoise and sharpening alter frames
+non-uniformly and fight the deflicker step, showing up as texture crawl. Doing NR yourself across
+the whole sequence, with parameters you control, is the better pipeline. The one genuine loss is
+**lens shading** — uncorrected vignetting darkens corners — but a single flat-field frame fixes that
+in post.
+
+**MJPEG is near-certain on the USB 2.0 variant.** 4K YUY2 is 16.6 MB per frame against ~40 MB/s of
+USB 2.0 High Speed bandwidth — 2.4 fps uncompressed. Advertising 4K over USB 2.0 at all requires a
+JPEG encoder. Confirm in the format list, but the arithmetic makes it hard to avoid.
+
+**"Proprietary" means unverifiable.** No named silicon, and having AE and AWB *blocks* says nothing
+about whether the CCM was calibrated against this sensor or inherited from a template. That only
+shows up in pictures.
+
+### Does the dynamic range difference actually matter?
+
+e-con quote the IMX678 at **110 dB** against roughly **90 dB** for the IMX415 — 3.3 stops on paper.
+Three reasons it matters far less than that here.
+
+**You almost certainly will not use HDR mode.** Those figures are HDR-mode numbers: multiple
+exposures combined and tone-mapped *by the ISP*. That is actively harmful for this application —
+the tone mapping is non-linear and scene-dependent, so it fights the exposure ramp and becomes a
+flicker source. Single-exposure dynamic range for both sensors is nearer ~72 dB (12 stops), and much
+closer together.
+
+**The ramp is the dynamic range strategy.** A sunset's ~10-stop swing is **temporal**, handled by
+changing exposure between frames. Any individual frame only has to hold the scene's *instantaneous*
+range, which sits comfortably inside 12 stops for either sensor. Capturing the whole sunset in one
+frame is what a 110 dB sensor is for, and it is not what this device does.
+
+**The real gap is 0.9 stops of sensor area, and exposure time recovers it:**
+
+| IMX678 exposure | IMX415 equivalent |
+|---|---|
+| 16.7 ms | 31.1 ms |
+| 66.7 ms | 124 ms |
+| 250 ms | 467 ms |
+
+This is [SENSORS.md](SENSORS.md) §5 applied again: **on a tripod, exposure time is nearly free.** At
+a 5–30 s interval there is an enormous unused exposure budget, and spending 0.9 stops of it costs
+nothing but a slightly longer shutter.
+
+> **The decision principle that follows: sensor area is recoverable, exposure control is not.**
+>
+> Test 1 in §8 is the binary risk that kills this build. If AE cannot be disabled and absolute
+> exposure set repeatably, no amount of sensor quality rescues it. So optimise for **the vendor who
+> documents their UVC controls and will answer a technical email**, not for the largest sensor.
+>
+> That argues *for* the professional IMX415 modules rather than against them. e-con describe their
+> IMX415 ISP as "tuned for excellent image quality under various lighting conditions including near
+> darkness" — a claim Arducam do not make in those terms. The honest counterweight is that IMX415
+> sits **0.4 stops below the IMX708** the sibling build already uses: recoverable with exposure, but
+> worth knowing you are doing it.
+
 ### Where to buy
 
 | Vendor | Region | Notes |
