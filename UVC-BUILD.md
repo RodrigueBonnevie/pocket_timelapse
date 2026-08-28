@@ -612,6 +612,43 @@ A 6× improvement, which would make this architecture comfortably the best optio
 > **"many cameras, including most Logitech UVC webcams, can't resume correctly from USB suspend"** —
 > large stream-start delays or corrupted video. Device-dependent and frequently broken. Test it.
 
+### If the levers fail — the fallback ladder
+
+The energy model assumes the camera can be got out of the way between frames. Three mechanisms do
+that, at different risk, and there is a fourth option that always works.
+
+**`VIDIOC_STREAMOFF` is the middle ground** and deserves testing alongside the others: it stops the
+video pipeline while leaving the device **enumerated**, so it avoids both the re-enumeration risk of
+power-cycling and the resume risk of suspend. It is the direct analogue of the sibling build's "stop
+the camera pipeline between frames" lever.
+
+| Strategy | Tier C | Tier B | Risk |
+|---|---|---|---|
+| USB suspend | **712 h** | 15.0 h | resume frequently broken |
+| Power-cycled | **152 h** | 14.1 h | re-enumeration unproven |
+| **`STREAMOFF` between frames** | 19.8 h | 10.1 h | **low — no enumeration involved** |
+| Camera streaming continuously | 12.0 h | 7.6 h | none — guaranteed |
+
+*30 s interval, 22.8 Wh at the rail.*
+
+**The floor is 12 hours**, which still meets the 6–12 h requirement at its top end. **The build
+remains usable even if every lever fails** — it simply stops being remarkable. Tier B streaming
+continuously at 7.6 h only just scrapes the requirement, which is another argument for tier C.
+
+> **The coupling that makes the collapse so complete: the host cannot sleep while the camera
+> streams.** USB requires an active host to maintain the connection. So "camera always on" forces
+> "host always on", which is why tier C falls from 152 h to 12 h in the last row — the microamp
+> sleep and the camera cost are lost *simultaneously*, not independently.
+>
+> That is also why `STREAMOFF` is worth testing despite its modest headline saving. If it drops the
+> camera to a low-power enumerated state, it recovers a real fraction of the gap for almost none of
+> the risk.
+
+**What failure would mean.** If all four levers disappoint, this becomes *a Pi build you can
+actually buy*: 12 h against the sibling's 27–53 h, but sourceable today and with a better sensor.
+Given the shortage, that may still be the right trade. The failure mode is unremarkable, not
+catastrophic.
+
 ### Runtime
 
 On 25.9 Wh of cells, 22.8 Wh at the rail, using the pessimistic `E_uvc` = 4.5 J:
@@ -847,6 +884,10 @@ thousands of frames. Specific hazards:
 rail-on to first valid frame, whether the device node number stays stable, and how many frames must
 be discarded before one is clean.
 
+**If it fails**, fall back to `STREAMOFF` (see the fallback ladder) — it keeps the device
+enumerated and sidesteps this entire class of problem, at the cost of whatever power the camera
+draws while idle-but-enumerated. Measure that too while you have the module on the bench.
+
 **Mitigations to build in regardless:** address the camera by stable path
 (`/dev/v4l/by-id/...`) rather than `/dev/videoN`; retry enumeration with backoff; budget the
 settling frames explicitly rather than assuming the first frame is good; and switch VBUS such that
@@ -878,6 +919,7 @@ Prove them by running a session to empty.
 | `P_cam`, `t_on` | Inline USB meter; plug-in to first valid frame |
 | Suspend behaviour | Suspended current, resume time, first-frame integrity |
 | Power-cycle reliability | 200 cycles: enumeration success rate, node stability, settling frames |
+| `STREAMOFF` power saving | Draw while enumerated but not streaming, against streaming and against off |
 | Image quality | A real sunset sequence, at 100 % and as a 4K frame |
 | Interval accuracy | `frames.csv` timestamps — stddev of deltas under 50 ms |
 | Session power | Meter across 1 h at the real interval |
