@@ -44,30 +44,108 @@ Standard interface, no vendor drivers.
 
 ## Decision 2 — the sensor
 
-UVC modules are built for **surveillance**, which is a stroke of luck: those sensors are designed
-for low light and wide dynamic range, exactly what a sunset needs. Sony's **STARVIS 2** generation
-is the current best.
+Most UVC modules are built for **surveillance**, which is a stroke of luck: those sensors are
+designed for low light and wide dynamic range, exactly what a sunset needs. Sony's **STARVIS 2**
+generation is the current best. Other industrial categories are surveyed further down — they have
+genuinely different strengths, and one of them is worth watching.
 
-| Sensor | Format | Resolution | Pixel | Pixel area | Sensor area | Interface |
-|---|---|---|---|---|---|---|
-| IMX415 | 1/2.8" | 3864×2192 | 1.45 µm | 2.10 µm² | 17.8 mm² | USB 2.0 |
-| **IMX678** | 1/1.8" | 3840×2160 | 2.00 µm | 4.00 µm² | **33.2 mm²** | **USB 2.0** or 3.0 |
-| **IMX585** | **1/1.2"** | 3856×2180 | **2.90 µm** | **8.41 µm²** | **70.7 mm²** | USB 3.0 |
+| Sensor | Format | Resolution | Pixel area | Sensor area | vs IMX708 | Crop at 4K | Interface |
+|---|---|---|---|---|---|---|---|
+| IMX415 | 1/2.8" | 3864×2192 | 2.10 µm² | 17.8 mm² | −0.4 | 1.01× | USB 2.0 |
+| AR1335 | 1/3.2" | 4208×3120 | 1.21 µm² | 15.9 mm² | −0.6 | 1.10× | USB 2.0/3.0 |
+| **IMX678** | 1/1.8" | 3840×2160 | 4.00 µm² | 33.2 mm² | **+0.5** | 1.00× | **USB 2.0** or 3.0 |
+| **IMX585** | **1/1.2"** | 3856×2180 | **8.41 µm²** | **70.7 mm²** | **+1.6** | 1.00× | USB 3.0 |
+| **IMX283** | **1"** | 5472×3648 | 5.76 µm² | **115 mm²** | **+2.3** | **1.43×** | USB 3.0 |
 
-**Chosen: IMX678 over USB 2.0**, in a board-level module with an M12 lens.
+**Chosen: IMX678 over USB 2.0**, in a board-level module with an M12 lens — the best sensor that
+still permits the low-power host.
 
-**IMX415 is a trap.** It is the most common 4K UVC sensor and it is the *worst* of the three — high
-pixel density on a small optical format, weak in exactly the light this device shoots in. Do not
-select by resolution.
+> **Worth chasing first:** if an **IMX283 module with MJPEG output** exists, it is arguably the
+> better camera — +2.3 stops *and* 1.43× crop room, which is the combination nothing else offers.
+> The known Arducam module is YUY2-only and USB 3.0, which rules out tier C, but the vendor
+> landscape moves. Ask before settling for the IMX678.
 
-**IMX585 is the upgrade**, and a serious one: **4.3× the pixel area of the IMX678's predecessor
-class** and more than double its sensor area. But see the coupling below before choosing it.
+**IMX415 is a trap.** It is the most common 4K UVC sensor and it is *worse than the IMX708 this
+project started from* — high pixel density on a small optical format, weak in exactly the light
+this device shoots in. Do not select by resolution.
 
-### All of these are 4K with no crop room
+**AR1335 is the same trap in a different costume** — 13 MP sounds generous until you notice it is
+1/3.2" with 1.1 µm pixels, putting it *below* the IMX415. Resolution and light-gathering are
+unrelated; see [SENSORS.md](SENSORS.md) §3.
 
-3840–3864 px wide means 4K exactly. There is no margin for cropping, straightening or stabilising
-in post. That is a real constraint and should be a deliberate choice: you are trading crop latitude
-for low-light performance.
+**IMX585 is the low-light upgrade**: 8.4 µm² pixels, more than double the IMX678's sensor area.
+
+**IMX283 is the crop-room upgrade**, and on paper the most interesting of all: **20 MP on a 1"
+sensor, +2.3 stops, and 1.43× linear crop at 4K.** More total sensor area than the IMX585 *and*
+real recomposing latitude. It has a catch — see the MJPEG requirement below.
+
+### Crop room is a real axis, and only IMX283 offers it
+
+The 8 MP STARVIS parts are 3840–3864 px wide, i.e. **4K exactly, with no margin** for cropping,
+straightening or stabilising in post. That is a deliberate trade of crop latitude for low light.
+
+The IMX283 breaks that trade — it gives both. If a still-higher-resolution module with a large
+sensor appears, it inherits the same advantage: **crop room is the one spec that keeps paying off
+as sensors improve**, because it lets you reframe a shot you can no longer revisit.
+
+### Non-negotiable: the camera must output MJPEG
+
+The whole architecture rests on the camera handing over *finished, compressed* frames. A module
+that outputs only uncompressed YUY2 pushes the JPEG encode back onto the host — reintroducing
+precisely the CPU cost this design exists to remove.
+
+The numbers make it stark:
+
+| Sensor | Uncompressed YUY2 frame |
+|---|---|
+| IMX585 | **17 MB** |
+| IMX283 | **40 MB** |
+
+A 40 MB frame does not fit an ESP32-P4's 32 MB of PSRAM, so a YUY2-only module **rules out tier C
+outright** and makes tier B do the encoding. Arducam's IMX283 USB 3.0 module is documented as
+YUY2-only, which is the catch mentioned above.
+
+**Check the supported formats before ordering. MJPEG is a hard requirement, not a preference.**
+
+### Beyond surveillance — the other industrial categories
+
+Surveillance is not the only industrial camera market, and the others are built around genuinely
+different priorities.
+
+| Category | Best at | Why it doesn't win here |
+|---|---|---|
+| **Surveillance** (STARVIS) | low light, dynamic range, tuning aimed at *pleasing* images, cheap, 4K common | exposure control varies by vendor — the open question in §8 |
+| **Machine vision** (Basler, FLIR, IDS) | **exposure control** — deterministic, repeatable, µs precision over GenICam | ISP tuned for *measurement*, not aesthetics; €300–800; USB 3.0; often mono |
+| **Automotive** (OmniVision OX03C10) | **140 dB HDR**, 3.0 µm pixels, LED flicker mitigation, −40 to +105 °C | 2.5 MP today — fails 4K decisively |
+| **Scientific / astro** (ZWO, QHY) | very large sensors, cooling | raw only, no ISP, €600+, 2–5 W |
+| **Broadcast / action** (Ambarella) | excellent ISP and encoding | closed SDKs, not sold as modules |
+
+**The central tension: the two things this project needs most come from opposite ends of the
+market.** Surveillance cameras give pleasing, tuned colour but inconsistent exposure control.
+Machine vision cameras give immaculate exposure control but tune for measurement — Basler even
+document turning colour processing *off* as the recommended setting. Neither category gives both.
+
+That reframes the first test in §8: you are checking whether a *surveillance* camera happens to
+have machine-vision-grade exposure control. If it doesn't, the fallback isn't giving up — it's
+accepting a machine vision camera and doing your own colour transform in post, since the footage is
+being post-processed anyway. Expensive, USB 3.0, and it forfeits the tuning advantage that motivated
+this whole architecture, but it is a real backstop.
+
+**The automotive category is the one to watch.** The OX03C10 has **140 dB of dynamic range** against
+roughly 70–90 dB for a typical sensor, plus 3.0 µm pixels and an automotive temperature range that
+suits a box left out through a Swedish winter. It is available as a UVC module today (Vadzo
+Falcon-3C10CRS). A sunset is the highest-dynamic-range subject in photography, so this is close to
+the ideal sensor for the job — except that at 2.5 MP it fails the resolution requirement outright.
+
+**8.3 MP automotive sensors combining LFM with 140 dB HDR now exist.** That would be 4K *and*
+140 dB, and it is the single most interesting development for this project to keep an eye on.
+
+### Do not pay for a global shutter
+
+Machine vision markets global shutter at a premium and it is worthless here. The camera is clamped
+to a tripod photographing a static scene with long exposures; there is no motion to freeze. Global
+shutter pixels carry more per-pixel circuitry, which costs fill factor and therefore **sensitivity —
+the one thing this project actually needs.** Rolling shutter is the correct choice.
 
 ### The USB coupling — this decides more than it looks
 
@@ -470,7 +548,8 @@ Prove them by running a session to empty.
 | IMX585 forces USB 3.0 and an SBC host | Choose sensor and host together; IMX678 keeps tier C open |
 | Camera module bulk breaks the enclosure | Model the module before printing; C-mount especially |
 | Flat pack re-wakes and drains to protection | Clear the wake alarm when halting on low battery |
-| UVC vendor quirks | Prefer documented vendors (e-con, Arducam) over generic modules |
+| **Module outputs YUY2 only** | Check supported formats before ordering; kills tier C and adds host encode cost |
+| UVC vendor quirks | Prefer documented vendors (e-con, Arducam, Vadzo) over generic modules |
 
 ---
 
@@ -498,3 +577,7 @@ the best of both, and should be adopted immediately.
 - [Linux UVC driver FAQ — autosuspend and resume problems](https://www.ideasonboard.org/uvc/faq/)
 - [USB webcam power draw on a Raspberry Pi 4 — forum measurements](https://forums.raspberrypi.com/viewtopic.php?t=343144)
 - [What is a UVC camera — Edge AI and Vision Alliance](https://www.edge-ai-vision.com/2022/08/what-is-a-uvc-camera-and-what-are-the-different-types-of-uvc-cameras/)
+- [Vadzo Falcon-3C10CRS — OX03C10 140 dB HDR UVC module](https://www.accessnewswire.com/newsroom/en/electronics-and-engineering/vadzo-imaging-launches-falcon-3c10crs-2.5mp-omnivisionox03c10-hdr-usb-3-1172035)
+- [OmniVision OX03C10 — 140 dB HDR with LED flicker mitigation](https://www.ovt.com/press-releases/omnivision-launches-worlds-first-image-sensor-for-automotive-viewing-cameras-with-140-db-hdr-and-top-led-flicker-mitigation-performance/)
+- [Arducam 20 MP IMX283 USB 3.0 module with onboard ISP](https://www.arducam.com/arducam-20mp-usb-3-0-camera-module-with-16mm-c-mount-lens-b0477.html)
+- [Basler — colour processing and calibration in machine vision cameras](https://www.baslerweb.com/en-us/learning/color-calibration/)
