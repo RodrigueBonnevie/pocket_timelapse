@@ -493,17 +493,60 @@ nothing but a slightly longer shutter.
 | Vadzo Imaging | IN | professional tier, including the automotive HDR modules |
 | RobotShop, Amazon | EU/US | resellers, variable stock |
 
-### On lens choice
+### Lenses — M12 / S-mount
 
-The default M12 module ships with a lens matched to the sensor. If you take the **IMX585 C-mount**
-route, note that a 16 mm lens on a 1/1.2" sensor gives roughly **38° horizontal** — normal-to-tele,
-about a 50 mm equivalent. For cityscapes and landscapes you likely want **6–8 mm** (~70°). Check the
-focal length before ordering; the bundled 16 mm is aimed at machine vision, not scenery.
+The board-level modules use **M12×P0.5**, universally called **S-mount** — the most common
+board-camera lens standard, with a large and inexpensive ecosystem.
 
-Fixed aperture and manual focus are *advantages* here — no focus breathing, no aperture flicker
-between frames, both of which are real contributors to timelapse flicker.
+**Swapping is mechanically trivial.** Unscrew one, screw in the next; no bayonet, no adapter. Focus
+is set *by* how far the lens is screwed in and then locked with a grub screw. Crude, but it suits
+this project exactly: **focus is set once and locked forever**, with no mechanism to drift or hunt
+between frames. Aperture is fixed with no iris, so there is no aperture flicker either — both of
+which are genuine flicker sources on lenses that have those mechanisms.
 
----
+#### The catch: this sensor is large for M12
+
+The IMX678 is 1/1.8" — **8.81 mm diagonal**. Most M12 lenses are designed for 1/3" or 1/2.7" sensors
+and **will vignette badly**. Filter on **image circle ≥ 8.8 mm**, which is a considerably smaller
+subset of the catalogue than "M12 lens" implies.
+
+They exist and are catalogued by sensor. Commonlands list parts explicitly for the IMX678 — the
+**CIL058** (5.8 mm, 9.3 mm image circle) among them — and Lensation, Sunex, Edmund Optics and
+Arducam's own range all carry large-format M12 optics.
+
+> **The non-obvious criterion: chief ray angle.** A CRA mismatch between lens and sensor microlenses
+> produces colour casts toward the corners, typically magenta or green. Normally the ISP's **lens
+> shading correction** cleans that up — but **Arducam's published ISP block list contains no lens
+> shading correction**, so on this module a mismatch would land uncorrected in your frames.
+>
+> That raises the stakes considerably: buy a lens **specified for this sensor**, not one that merely
+> fits the thread. And shoot a flat-field frame regardless, so shading is correctable in post.
+
+#### Focal length for cityscapes and sunsets
+
+Crop factor is **4.91×** against full frame:
+
+| M12 focal | Horizontal FOV | Full-frame equivalent |
+|---|---|---|
+| 3.5 mm | 95° | 17 mm |
+| 4 mm | 88° | 20 mm |
+| **5.8 mm** | 67° | **28 mm** |
+| **8 mm** | 51° | **39 mm** |
+| 12 mm | 35° | 59 mm |
+
+**5.8 mm or 8 mm** are the classic landscape focal lengths here.
+
+The lens bundled with the Arducam module is listed as *"100°D wide angle"* — roughly 3.5 mm, about
+17 mm equivalent. Wider than most cityscape work wants, and **cheap wide M12 lenses carry visible
+barrel distortion**, which is unforgiving on architecture. Budget for a low-distortion replacement;
+it is a €30–80 line item, not a €200 one.
+
+#### If you take the IMX585 C-mount route instead
+
+Different mount, different problem. A 16 mm C-mount lens on a 1/1.2" sensor gives roughly **38°
+horizontal** — normal-to-tele, about a 50 mm equivalent, aimed at machine vision rather than
+scenery. You would want **6–8 mm**. Check the focal length before ordering, and note the C-mount
+body plus barrel is substantially bulkier than an M12 module — see the enclosure size warning.
 
 ## Power budget
 
