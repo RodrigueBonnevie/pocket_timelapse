@@ -116,7 +116,7 @@ different priorities.
 |---|---|---|
 | **Surveillance** (STARVIS) | low light, dynamic range, tuning aimed at *pleasing* images, cheap, 4K common | exposure control varies by vendor — the open question in §8 |
 | **Machine vision** (Basler, FLIR, IDS) | **exposure control** — deterministic, repeatable, µs precision over GenICam | ISP tuned for *measurement*, not aesthetics; €300–800; USB 3.0; often mono |
-| **Automotive** (OmniVision OX03C10) | **140 dB HDR**, 3.0 µm pixels, LED flicker mitigation, −40 to +105 °C | 2.5 MP today — fails 4K decisively |
+| **Automotive** (OX03C10, OX08B40) | **140–150 dB HDR**, big pixels, LED flicker mitigation, −40 to +105 °C | the 4K parts are **GMSL2, not USB** — see below |
 | **Scientific / astro** (ZWO, QHY) | very large sensors, cooling | raw only, no ISP, €600+, 2–5 W |
 | **Broadcast / action** (Ambarella) | excellent ISP and encoding | closed SDKs, not sold as modules |
 
@@ -137,8 +137,37 @@ suits a box left out through a Swedish winter. It is available as a UVC module t
 Falcon-3C10CRS). A sunset is the highest-dynamic-range subject in photography, so this is close to
 the ideal sensor for the job — except that at 2.5 MP it fails the resolution requirement outright.
 
-**8.3 MP automotive sensors combining LFM with 140 dB HDR now exist.** That would be 4K *and*
-140 dB, and it is the single most interesting development for this project to keep an eye on.
+#### The 4K automotive sensors exist — and you cannot use them
+
+Chasing this down: **the sensors are real and they are close to ideal for this project.**
+
+| Sensor | Res | Format | Sensor area | vs IMX708 | Dynamic range |
+|---|---|---|---|---|---|
+| **OX08B40** | 3840×2160 | 1/1.73" | 36.6 mm² | +0.6 | **140 dB** |
+| **AR0823AT** | 4K | — | — | — | **150 dB** |
+| *IMX678, for comparison* | 3840×2160 | 1/1.8" | 33.2 mm² | +0.5 | ~90 dB |
+
+The OX08B40 has slightly more sensor area than the IMX678 **and roughly 50 dB more dynamic range**,
+with an on-chip HALE engine holding both HDR and flicker mitigation across the full automotive
+temperature range. For a sunset — the widest-dynamic-range subject in photography — that is close to
+the perfect sensor.
+
+**They are all GMSL2 or FPD-Link, not USB.** e-con's STURDeCAM88 (OX08B40) and NileCAM81 (AR0821)
+are GMSL2 modules, built for automotive architecture where the camera streams over coax to a central
+ECU that owns the ISP. Using one means a deserialiser board, a host with MIPI CSI-2 input, an ISP,
+**and tuning for that sensor** — which lands you precisely back in the problem this architecture
+exists to escape, with a Jetson-class power budget attached.
+
+The 2.5 MP OX03C10 is available over UVC only because someone (Vadzo) deliberately integrated a
+bridge and ISP onto it. Nobody has done that at 8 MP.
+
+**Why the gap exists:** automotive sensors are sold to Tier 1 suppliers under NDA with automotive
+qualification and volume commitments, into an architecture that assumes the ECU does the processing.
+There is no commercial incentive to build a webcam out of one.
+
+**So the automotive category has the best sensors for this job and the worst accessibility.** The
+thing to watch for is a UVC module carrying an 8 MP automotive sensor — check Vadzo, e-con and
+Leopard occasionally. If one appears it would likely be the best camera this project could use.
 
 ### Do not pay for a global shutter
 
@@ -581,3 +610,6 @@ the best of both, and should be adopted immediately.
 - [OmniVision OX03C10 — 140 dB HDR with LED flicker mitigation](https://www.ovt.com/press-releases/omnivision-launches-worlds-first-image-sensor-for-automotive-viewing-cameras-with-140-db-hdr-and-top-led-flicker-mitigation-performance/)
 - [Arducam 20 MP IMX283 USB 3.0 module with onboard ISP](https://www.arducam.com/arducam-20mp-usb-3-0-camera-module-with-16mm-c-mount-lens-b0477.html)
 - [Basler — colour processing and calibration in machine vision cameras](https://www.baslerweb.com/en-us/learning/color-calibration/)
+- [OmniVision OX08B40 — 8.3 MP, 140 dB HDR, LFM](https://www.ovt.com/products/ox08b40/)
+- [e-con STURDeCAM88 — OX08B40 4K GMSL2 camera](https://www.e-consystems.com/gmsl-cameras/8mp-ox08b40-ip67-gmsl2-140db-hdr-camera.asp)
+- [e-con STURDeCAM84 — AR0823AT 4K, 150 dB HDR, GMSL2](https://www.e-consystems.com/automotive-cameras/4k-ar0823at-ip69k-gmsl2-150db-hdr-camera.asp)
