@@ -285,7 +285,7 @@ usually the weakest part of the package.
 
 | Item | Spec | ≈ EUR |
 |---|---|---|
-| **Low-distortion M12 lens** | **5.8 or 8 mm**, **image circle ≥ 8.8 mm**, CRA matched to IMX678 | **~50** |
+| **Low-distortion M12 lens** | **`CIL058-F2.2-M12A650`** — 5.8 mm, f/2.2, 9.3 mm image circle | **~50** |
 | *(if IMX585 route)* C-mount lens | 6–8 mm, 1/1.2" coverage | ~80 |
 
 Three requirements, in order of how easily they are missed:
@@ -298,8 +298,39 @@ Three requirements, in order of how easily they are missed:
    architecture. The bundled *"100°D"* lens is ~3.5 mm — 17 mm equivalent, wider than cityscape work
    wants and likely distorted.
 
-Vendors who list by sensor: **Commonlands** (the CIL058, 5.8 mm with a 9.3 mm image circle, is
-specified for the IMX678), plus Lensation, Sunex and Edmund Optics.
+#### Specific parts
+
+| Part | Focal | Aperture | Image circle | Distortion | On IMX678 |
+|---|---|---|---|---|---|
+| **CIL058-F2.2-M12A650** | 5.8 mm | **f/2.2** | 9.3 mm | **<1 % TV** | 67° H ≈ **28 mm** equiv |
+| CIL083-F2.8-M12A650 | 8 mm | f/2.8 | 8.8 mm | low | 51° H ≈ **39 mm** equiv |
+| CIL062 | 6 mm | — | 1/1.8" | −2 % rectilinear | ~64° H ≈ 30 mm equiv |
+
+**Recommended: CIL058.** Wider, which suits cityscapes and big skies, and **0.7 stops faster** at
+f/2.2 against f/2.8 — worth having on a device whose hard problem is the dark end of a sunset. It
+also carries the larger image-circle margin and the lower distortion, and is all-glass with an
+all-metal barrel and documented thermal stability. Take the CIL083 only if you want tighter framing.
+
+> **The suffix matters.** `A650` includes a **650 nm IR-cut filter**; `ANIR` has none.
+>
+> **Take `A650` unless the camera module already has its own IR-cut filter** — most colour
+> surveillance modules do, sometimes on a mechanical day/night switcher. **Verify this before
+> ordering.** Two filters costs a little light; *zero* filters visibly breaks daylight colour —
+> foliage goes magenta and skies shift.
+
+#### Where to buy — single units, ships to Sweden
+
+| Source | Notes |
+|---|---|
+| **DigiKey Marketplace** | Stocks Commonlands (e.g. `CIL083-F2.8-M12ANIR`, DigiKey 25587732). **Single units, no MOQ, ships to Sweden** |
+| **Amazon** | Both `CIL058-F2.2-M12A650` and the CIL083 variants listed |
+| **Lensation GmbH** | Karlsruhe, Germany — **EU, no customs**; lens finder filters by mount and sensor size |
+| Edmund Optics | M12 category, European operation |
+| Commonlands direct | Price breaks start at qty 50 — awkward for a single unit |
+
+**DigiKey resolves the single-unit problem** that makes the professional camera vendors awkward:
+these are proper optics sold through a distributor that will happily sell you one, with no quote
+and no email.
 
 The €199 figure is a real listing — Arducam's IMX678 USB 3.0 module with enclosure at Welectron,
 who are in Germany, so EU with no customs. The USB 2.0 board-level variant should undercut it;
@@ -1041,6 +1072,7 @@ Prove them by running a session to empty.
 | **Module is a bridge, not an ISP** | Confirm UVC MJPEG/YUY2 output and ask which ISP is fitted; a CX3-only board breaks the architecture |
 | Controls report as set but do nothing | Documented on Arducam's forum; test 1 catches it. Check USB hub and kernel version before blaming the camera |
 | Re-enumeration flaky over thousands of cycles | Test 4; address by stable `by-id` path, retry with backoff, budget settling frames |
+| Wrong IR-cut configuration | Verify whether the module has its own filter; `A650` vs `ANIR` decides it. Zero filters visibly breaks daylight colour |
 | Exposure quantisation below ~1 ms | Clamp shutter at ~1 ms in `ramp.py`; use gain or an ND filter below that |
 | UVC vendor quirks | Prefer documented vendors (e-con, Arducam, Vadzo) over generic modules |
 
@@ -1076,6 +1108,11 @@ the best of both, and should be adopted immediately.
 - [Basler — colour processing and calibration in machine vision cameras](https://www.baslerweb.com/en-us/learning/color-calibration/)
 - [Infineon EZ-USB CX3 — MIPI CSI-2 to USB 3.0 bridge](https://www.infineon.com/products/universal-serial-bus/usb-3-2-peripheral-controllers/ez-usb-cx3-mipi-csi2-to-usb-5gbps-camera-controller)
 - [Welectron — Arducam IMX678 USB 3.0 module, €199](https://www.welectron.com/Arducam-B0497C-83MP-Sony-STARVIS-2-IMX678-Low-Light-Manual-Focus-USB-30-Camera-Module-With-Enclosure_1)
+- [Commonlands CIL058 — 5.8 mm M12, low distortion, large format](https://commonlands.com/products/low-distortion-5-8mm-m12-lens)
+- [Commonlands CIL083 — 8 mm M12 for 1/1.8", 8.8 mm image circle](https://commonlands.com/products/low-distortion-8mm-m12-lenses)
+- [DigiKey — Commonlands CIL083-F2.8-M12ANIR, single units](https://www.digikey.com/en/products/detail/commonlands/CIL083-F2-8-M12ANIR/25587732)
+- [Lensation GmbH — S-mount lens finder (Karlsruhe, EU)](https://www.lensation.de/lens-finder/?_cat=s-mount-lenses)
+- [Edmund Optics — M12 / S-mount lenses](https://www.edmundoptics.com/c/m12-smount-lenses/1005/)
 - [OmniVision OX08B40 — 8.3 MP, 140 dB HDR, LFM](https://www.ovt.com/products/ox08b40/)
 - [e-con STURDeCAM88 — OX08B40 4K GMSL2 camera](https://www.e-consystems.com/gmsl-cameras/8mp-ox08b40-ip67-gmsl2-140db-hdr-camera.asp)
 - [e-con STURDeCAM84 — AR0823AT 4K, 150 dB HDR, GMSL2](https://www.e-consystems.com/automotive-cameras/4k-ar0823at-ip69k-gmsl2-150db-hdr-camera.asp)
