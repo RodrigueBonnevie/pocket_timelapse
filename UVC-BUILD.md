@@ -132,7 +132,7 @@ different priorities.
 | Category | Best at | Why it doesn't win here |
 |---|---|---|
 | **Surveillance** (STARVIS) | low light, dynamic range, tuning aimed at *pleasing* images, cheap, 4K common | exposure control varies by vendor — the open question in §8 |
-| **Machine vision** (Basler, FLIR, IDS) | **exposure control** — deterministic, repeatable, µs precision over GenICam | ISP tuned for *measurement*, not aesthetics; €300–800; USB 3.0; often mono |
+| **Machine vision** (Basler, FLIR, IDS) | **exposure control** — deterministic, repeatable, µs precision over GenICam | ISP tuned for *measurement*; €300–800; usually USB3 Vision rather than UVC — though the IDS uEye XC is an exception |
 | **Automotive** (OX03C10, OX08B40) | **140–150 dB HDR**, big pixels, LED flicker mitigation, −40 to +105 °C | the 4K parts are **GMSL2, not USB** — see below |
 | **Scientific / astro** (ZWO, QHY) | very large sensors, cooling | raw only, no ISP, €600+, 2–5 W |
 | **Broadcast / action** (Ambarella) | excellent ISP and encoding | closed SDKs, not sold as modules |
@@ -318,7 +318,61 @@ all-metal barrel and documented thermal stability. Take the CIL083 only if you w
 > ordering.** Two filters costs a little light; *zero* filters visibly breaks daylight colour —
 > foliage goes magenta and skies shift.
 
-#### Where to buy — single units, ships to Sweden
+#### Fallback: machine-vision cameras, if test 1 fails
+
+If exposure control on a surveillance module turns out unusable, the machine-vision vendors are the
+answer — that is the one thing they are unambiguously best at. Both sell single units through
+Edmund Optics and Mouser.
+
+#### Basler dart `daA3840-45uc`
+
+| | |
+|---|---|
+| Sensor | **IMX334**, 8.3 MP, 1/1.8", **rolling shutter** |
+| Mount | **S-mount (M12)** — the CIL058 fits |
+| Size | 29 × 29 mm, 15 g (bareboard 27 × 27 mm, 5 g) |
+| Interface | **USB 3.0 / USB3 Vision** — needs the Pylon SDK, not v4l2 |
+| Price | range starts €99; this model likely €250–400 |
+
+Sensor is the same class as the IMX678 — 1/1.8", 2.0 µm — just STARVIS gen 1 rather than gen 2.
+**GenICam exposure control is deterministic and µs-precise, so test 1 stops being a risk.**
+
+**But USB3 Vision is not UVC**, so the ESP32-P4 host is impossible and you are on tier B:
+
+| Interval | `t_on` 2 s | `t_on` 4 s | Always on |
+|---|---|---|---|
+| **2 s** | **5.7 h** | 5.7 h | 5.7 h |
+| **5 s** | **9.1 h** | 6.5 h | 5.7 h |
+| 30 s | 13.7 h | 12.4 h | 5.7 h |
+| 60 s | 14.4 h | 13.7 h | 5.7 h |
+
+**At 2–5 s it fails or barely scrapes the requirement** — `t_on` becomes comparable to the interval,
+so power-cycling stops helping, and Pylon's device open cycle is almost certainly slower than
+v4l2's. Good for 30–60 s work; wrong for sunsets.
+
+And a sharper problem: **on tier B you are at ~13 h, worse than the Pi build's 27–53 h.** The
+Basler's exposure advantage exists only relative to the *UVC* option — the Pi's libcamera gives
+excellent exposure control too. So this is a solution to the *sourcing* problem at 2–3× the price
+and half the runtime of the build you cannot source. Coherent, but narrow.
+
+#### IDS uEye XC — the right architecture, the wrong sensor
+
+Worth recording because it **disproves a general claim made earlier in this document**: IDS offer the
+uEye XC with a choice of *"the USB3 Vision protocol and plug-and-play functionality with the new
+**UVC** protocol."* **Machine-vision-grade cameras with UVC do exist.**
+
+That would be ideal — professional controls, v4l2, tier C still open, integrated ISP, German
+manufacture with long-term availability and no customs into Sweden.
+
+**The sensor undoes it.** The uEye XC carries a 13 MP onsemi part, almost certainly the AR1335:
+1/3.2", 1.1 µm pixels, **15.9 mm² — −0.6 stops below the IMX708** and worse than every other option
+here. The resolution trap in professional packaging. It is also autofocus, which would need locking.
+
+**If IDS ever put a 1/1.8" STARVIS behind that UVC interface it would be close to ideal for this
+project.** Worth checking their range periodically. The uEye XLE is USB3 Vision only, so it carries
+the same interface problem as the Basler.
+
+### Where to buy — single units, ships to Sweden
 
 | Source | Notes |
 |---|---|
