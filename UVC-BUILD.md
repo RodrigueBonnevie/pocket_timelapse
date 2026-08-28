@@ -959,6 +959,30 @@ disappointing Phase 0 changes `camera.py` and nothing else.
 **Buy one camera module and run these before anything else.** They cost an evening and
 they determine whether this build is viable, competitive, or dead.
 
+### The Phase 0 shopping list
+
+**You do not need the rest of the BOM to run these tests.** All four need a camera, a meter, and a
+Linux laptop you already own.
+
+| Item | Why | ≈ EUR |
+|---|---|---|
+| **Arducam B0587** (IMX678, USB 2.0, M12) | the thing under test | ~150 |
+| **USB power meter** with Wh/mAh totaliser | test 2 — `P_cam` and `t_on` | 20 |
+| **USB hub with per-port power switching** (`uhubctl`-compatible) | test 4 — scripted power-cycling with no custom hardware | 20 |
+| Linux laptop | `v4l2-ctl` and everything else | already owned |
+| | **total** | **≈ 190** |
+
+The hub is the neat part: **`uhubctl`** controls per-port power on hubs that support it, so 200
+power cycles can be scripted without first building a load switch, an RTC or a battery rail.
+
+**Do not buy yet:** the lens, cells, bay charger, host board, boost converter, RTC, enclosure,
+filter, vent plug, button or inserts — roughly **€200 of parts that all depend on Phase 0 passing**.
+The bundled 100° lens is perfectly adequate for testing, because what is under evaluation is the
+sensor and the exposure control, not the optics.
+
+This is the same discipline as the sibling build's "items 1–4 plus a power meter": spend the
+smallest amount that can answer the binary question.
+
 ### What can be determined before buying
 
 Most of it, as it turns out. UVC is a standard, so the control *vocabulary* is fixed — what varies
@@ -1074,8 +1098,9 @@ the host registers a genuine disconnect.
 
 ## Order of work
 
-**Phase 0 — the four measurements above**, on one module, before buying anything else. If exposure
-control fails, this architecture is dead and you have spent €110 finding out.
+**Phase 0 — the four measurements above**, on the shopping list above and nothing more. If exposure
+control fails, this architecture is dead and you have spent ~€190 finding out — against roughly
+€350 for the full build.
 
 **Phase 1 — capture and ramp.** Interval accuracy, locked exposure, atomic writes, metadata log.
 
