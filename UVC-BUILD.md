@@ -1,6 +1,6 @@
 # Pocket Timelapse Camera — the UVC build
 
-*Status: design proposed, **three measurements outstanding** before the BOM can be trusted — see
+*Status: design proposed, **four measurements outstanding** before the BOM can be trusted — see
 §8. The sibling architecture is [PI-BUILD.md](PI-BUILD.md).*
 
 ## Context
@@ -564,6 +564,37 @@ circuits draw whenever powered regardless of readout rate.
 **Consequence: the only lever that matters is shortening or eliminating `t_on`.** Frame rate is not
 a useful knob here.
 
+### Frame rate is a knob on the wrong axis — and you want it *high*
+
+A natural instinct: if the camera streams video, lower the frame rate to save power. UVC does let
+you — `v4l2-ctl --list-formats-ext` shows the advertised intervals per resolution (typically
+30/25/20/15/10/5 fps) and `--set-parm` selects one. But almost nothing advertises below ~5 fps, and
+more importantly the effect is dwarfed by the on/off decision.
+
+| At a 30 s interval | Energy per frame |
+|---|---|
+| Streaming continuously at 5 fps | ~45 J (30 s × ~1.5 W) |
+| **Power-cycled, ~1.8 s on** | **~3.6 J** |
+
+Even at the lowest advertised rate, leaving the camera running costs **more than ten times** what
+switching it off does — and that is the *optimistic* case where power scales cleanly with frame
+rate. If the bridge decimates instead, lowering fps saves only USB traffic.
+
+**The inversion: request the highest frame rate available, not the lowest.**
+
+Energy per frame is `P_cam × t_on`, and `t_on` is dominated by boot plus the wait for a usable
+frame. At 30 fps a frame arrives every 33 ms; at 5 fps, every 200 ms. If the ISP needs a few frames
+to settle, higher rate clears them six times faster.
+
+Combine that with power being **static-dominated**:
+
+- If power were purely dynamic, higher `P` and shorter `t` would cancel — same energy
+- Because power is largely static, **shorter `t_on` at higher fps genuinely means less energy**
+
+So `camera.py` should **request the highest advertised frame rate, grab its frame, and cut power as
+fast as possible.** The goal is minimising time-on, not streaming efficiently — this device is not
+really streaming, it is taking one photograph and leaving.
+
 ### The suspend lever
 
 If the static floor dominates, the win is not running slower — it is **not booting at all**. Leave
@@ -707,9 +738,9 @@ is plumbing.
 
 ---
 
-## The three open measurements
+## The four open measurements
 
-**Buy one camera module — €110 — and run these before anything else.** They cost an evening and
+**Buy one camera module and run these before anything else.** They cost an evening and
 they determine whether this build is viable, competitive, or dead.
 
 ### What can be determined before buying
@@ -796,9 +827,34 @@ term. Broken resume means falling back to power-cycling.
 
 ---
 
+### 4. Power-cycle reliability — decides whether the architecture survives contact
+
+**Not confirmed for any module, and worth separating from the suspend question.** The warning about
+resume failures in §3 concerns *suspend/resume*, a state-restoration path that is genuinely fragile.
+**Power-cycling is different and generally more robust** — the device re-enumerates from scratch,
+exactly as on a physical replug, which is the best-tested path in USB.
+
+More robust is not verified, though, and this build power-cycles the camera once per frame for
+thousands of frames. Specific hazards:
+
+- **Device node instability** — `/dev/video0` can become `/dev/video1` across re-enumeration
+- **Unclean disconnect** — if VBUS is cut while the data lines stay connected to a live host, the
+  device may be partly back-powered through ESD diodes and the host may miss the disconnect
+- **Inrush** on power-up, which the load switch and boost must absorb
+- **Settling frames** — even with AE disabled, the ISP may need several frames before one is usable
+
+**The test:** 200 power cycles under software control. Record enumeration success rate, time from
+rail-on to first valid frame, whether the device node number stays stable, and how many frames must
+be discarded before one is clean.
+
+**Mitigations to build in regardless:** address the camera by stable path
+(`/dev/v4l/by-id/...`) rather than `/dev/videoN`; retry enumeration with backoff; budget the
+settling frames explicitly rather than assuming the first frame is good; and switch VBUS such that
+the host registers a genuine disconnect.
+
 ## Order of work
 
-**Phase 0 — the three measurements above**, on one module, before buying anything else. If exposure
+**Phase 0 — the four measurements above**, on one module, before buying anything else. If exposure
 control fails, this architecture is dead and you have spent €110 finding out.
 
 **Phase 1 — capture and ramp.** Interval accuracy, locked exposure, atomic writes, metadata log.
@@ -821,6 +877,7 @@ Prove them by running a session to empty.
 | Exposure linearity | Luma vs commanded exposure, twice, looking for hysteresis |
 | `P_cam`, `t_on` | Inline USB meter; plug-in to first valid frame |
 | Suspend behaviour | Suspended current, resume time, first-frame integrity |
+| Power-cycle reliability | 200 cycles: enumeration success rate, node stability, settling frames |
 | Image quality | A real sunset sequence, at 100 % and as a 4K frame |
 | Interval accuracy | `frames.csv` timestamps — stddev of deltas under 50 ms |
 | Session power | Meter across 1 h at the real interval |
@@ -847,6 +904,7 @@ Prove them by running a session to empty.
 | No UVC compression-quality control | `storage.py` loses its quality lever; budget by interval instead |
 | **Module is a bridge, not an ISP** | Confirm UVC MJPEG/YUY2 output and ask which ISP is fitted; a CX3-only board breaks the architecture |
 | Controls report as set but do nothing | Documented on Arducam's forum; test 1 catches it. Check USB hub and kernel version before blaming the camera |
+| Re-enumeration flaky over thousands of cycles | Test 4; address by stable `by-id` path, retry with backoff, budget settling frames |
 | Exposure quantisation below ~1 ms | Clamp shutter at ~1 ms in `ramp.py`; use gain or an ND filter below that |
 | UVC vendor quirks | Prefer documented vendors (e-con, Arducam, Vadzo) over generic modules |
 
@@ -858,7 +916,7 @@ Prove them by running a session to empty.
 cheaper (~€175), its numbers are settled, and at 2–5 s intervals it is probably more efficient. Its
 weakness is that it depends on a board that spent much of 2026 unobtainable.
 
-This build costs more and carries three open questions, but it sources today, offers a materially
+This build costs more and carries four open questions, but it sources today, offers a materially
 better sensor, and — in tier C — scales to multi-week deployments the Pi cannot approach.
 
 If a Raspberry Pi-compatible module with a STARVIS 2 sensor and Pi tuning ever appears, it would be
