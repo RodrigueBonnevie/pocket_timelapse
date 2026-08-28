@@ -88,11 +88,22 @@ The IMX283 breaks that trade — it gives both. If a still-higher-resolution mod
 sensor appears, it inherits the same advantage: **crop room is the one spec that keeps paying off
 as sensors improve**, because it lets you reframe a shot you can no longer revisit.
 
-### Non-negotiable: the camera must output MJPEG
+### Non-negotiable: independently compressed frames
 
-The whole architecture rests on the camera handing over *finished, compressed* frames. A module
-that outputs only uncompressed YUY2 pushes the JPEG encode back onto the host — reintroducing
-precisely the CPU cost this design exists to remove.
+The whole architecture rests on the camera handing over *finished, compressed, independent* frames.
+
+**On the naming:** Motion JPEG has no inter-frame compression — every frame is a complete,
+standalone JPEG. Grab one frame from an MJPEG stream and you have a JPEG file. The "M" describes how
+frames are *streamed*, not how they are *encoded*. So the requirement is **intra-frame compression**,
+and MJPEG is what UVC calls it.
+
+**Avoid H.264, which several UVC modules also offer.** It is inter-frame compressed, and taking it
+would forfeit exactly what [PI-BUILD.md](PI-BUILD.md)'s "Rejected: encoding video on-device" section
+rejects: no deflickering, no re-grading, no cropping, no dropping bad frames. If a module offers
+both, take MJPEG and ignore the H.264.
+
+A module that outputs only uncompressed YUY2 is the opposite failure — it pushes the JPEG encode
+back onto the host, reintroducing precisely the CPU cost this design exists to remove.
 
 The numbers make it stark:
 
@@ -106,6 +117,12 @@ outright** and makes tier B do the encoding. Arducam's IMX283 USB 3.0 module is 
 YUY2-only, which is the catch mentioned above.
 
 **Check the supported formats before ordering. MJPEG is a hard requirement, not a preference.**
+
+> **Implementation gotcha.** Some MJPEG variants omit the JPEG Huffman table (`DHT`), because the
+> MJPEG spec implies a standard one — which is why v4l2 distinguishes `V4L2_PIX_FMT_JPEG` from
+> `V4L2_PIX_FMT_MJPEG`. Most modern UVC cameras emit complete JFIF frames and ffmpeg or OpenCV
+> handle both transparently, but a naive byte-dump to disk could produce files that will not open.
+> Check the first frame; the fix is prepending a standard table.
 
 ### Beyond surveillance — the other industrial categories
 
@@ -627,8 +644,16 @@ is independent of interval** — roughly 22.8 Wh ÷ 4.5 J ≈ 18,200 frames. Tha
 from the Pi build, where a fixed idle floor makes short intervals cost more frames' worth of energy.
 
 **128 GB is ample** — 40 GB at the pessimistic energy figure, or ~120 GB on the optimistic one where
-you get 3× the frames. `storage.py` should still pick JPEG quality against a session budget so a
-long deployment degrades gracefully rather than filling the card mid-run.
+you get 3× the frames.
+
+> **The adaptive-quality plan may not transfer.** The sibling build has `storage.py` choose JPEG
+> quality against a session budget, so a long deployment degrades gracefully instead of filling the
+> card. **With a UVC camera the ISP picks the compression quality, not you.** Some modules expose a
+> UVC compression-quality control; many do not.
+>
+> If yours does not, `storage.py` loses its quality lever and can only refuse an over-budget session
+> or propose a longer interval. Worth checking on the test module — enumerate the UVC controls and
+> look for a compression or quality setting alongside exposure.
 
 ---
 
@@ -694,6 +719,9 @@ varies enormously.
 2. Set `exposure_time_absolute` across a series of known values spanning several stops.
 3. Photograph a static, evenly lit scene at each.
 4. Plot mean luma against commanded exposure.
+5. While you are there, **enumerate every UVC control** (`v4l2-ctl --list-ctrls-menus`) and record
+   whether a compression-quality control exists, and confirm the first MJPEG frame writes to a
+   `.jpg` that actually opens.
 
 **You want a straight line, and the same value must give the same result on a repeat run.**
 Curvature is survivable with a calibration table. Hysteresis, quantisation into a handful of steps,
@@ -759,6 +787,8 @@ Prove them by running a session to empty.
 | Camera module bulk breaks the enclosure | Model the module before printing; C-mount especially |
 | Flat pack re-wakes and drains to protection | Clear the wake alarm when halting on low battery |
 | **Module outputs YUY2 only** | Check supported formats before ordering; kills tier C and adds host encode cost |
+| Module offers only H.264 compressed | Inter-frame compression forfeits deflicker, crop and re-grade — require MJPEG |
+| No UVC compression-quality control | `storage.py` loses its quality lever; budget by interval instead |
 | **Module is a bridge, not an ISP** | Confirm UVC MJPEG/YUY2 output and ask which ISP is fitted; a CX3-only board breaks the architecture |
 | UVC vendor quirks | Prefer documented vendors (e-con, Arducam, Vadzo) over generic modules |
 
