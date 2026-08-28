@@ -31,7 +31,7 @@ the software all come from Phase 0 measurements on real hardware.
 | Interface | WiFi AP + web page to configure; one illuminated button, blink codes for status |
 | Enclosure | IP65 or 3D printed — no external ports, designed to be opened |
 | Runtime | ~20 h untuned, ~27 h tuned · standby limited by cell self-discharge, not the circuit |
-| Parts | ≈ €175 |
+| Parts | ≈ €175 (Pi build) · ≈ €348 (UVC build) |
 
 ## Three things that shaped everything else
 

@@ -274,9 +274,32 @@ complexity bought for information the web page presents better.
 
 | Option | Sensor | Interface | ≈ EUR |
 |---|---|---|---|
-| **Default** | IMX678, M12 lens, board-level | USB 2.0 | **~150** |
+| **Default** | IMX678, board-level, M12 mount | USB 2.0 | **~150** |
 | Alternative | IMX678 with enclosure | USB 3.0 | **199** (verified, Welectron) |
-| Upgrade | IMX585 + C-mount lens | USB 3.0 | ~250 |
+| Upgrade | IMX585, C-mount | USB 3.0 | ~250 |
+
+### Lens
+
+Modules ship with a lens, so this is **recommended rather than required** — but the bundled optic is
+usually the weakest part of the package.
+
+| Item | Spec | ≈ EUR |
+|---|---|---|
+| **Low-distortion M12 lens** | **5.8 or 8 mm**, **image circle ≥ 8.8 mm**, CRA matched to IMX678 | **~50** |
+| *(if IMX585 route)* C-mount lens | 6–8 mm, 1/1.2" coverage | ~80 |
+
+Three requirements, in order of how easily they are missed:
+
+1. **Image circle ≥ 8.8 mm.** The IMX678 is 1/1.8"; most M12 lenses target 1/3" or 1/2.7" and will
+   vignette. This eliminates most of the catalogue.
+2. **CRA matched to the sensor.** A mismatch produces corner colour casts, and **Arducam's ISP has
+   no lens shading correction** to hide them. Buy from a vendor who catalogues by sensor.
+3. **Low distortion.** Cheap wide M12 optics carry barrel distortion that is unforgiving on
+   architecture. The bundled *"100°D"* lens is ~3.5 mm — 17 mm equivalent, wider than cityscape work
+   wants and likely distorted.
+
+Vendors who list by sensor: **Commonlands** (the CIL058, 5.8 mm with a 9.3 mm image circle, is
+specified for the IMX678), plus Lensation, Sunex and Edmund Optics.
 
 The €199 figure is a real listing — Arducam's IMX678 USB 3.0 module with enclosure at Welectron,
 who are in Germany, so EU with no customs. The USB 2.0 board-level variant should undercut it;
@@ -292,14 +315,19 @@ tuning you are buying actually lives.
 
 ### Totals
 
-| Build | Total |
-|---|---|
-| **Tier C + IMX678 (USB 2.0)** — lowest power | **≈ €298** |
-| Tier B + IMX678 — easiest software | ≈ €310 |
-| Tier B + IMX585 — best image quality | ≈ €410 |
+| Build | Bundled lens | **With a proper lens** |
+|---|---|---|
+| **Tier C + IMX678 (USB 2.0)** — lowest power | €298 | **≈ €348** |
+| Tier B + IMX678 — easiest software | €310 | ≈ €360 |
+| Tier B + IMX585 — best image quality | €410 | ≈ €490 |
 
-**This is a substantially more expensive build than the Pi architecture (~€175)** — roughly double —
-and the camera is the entire difference. You are paying for someone else's ISP tuning, in a box.
+**This is a substantially more expensive build than the Pi architecture (~€175)** — roughly double
+to nearly triple — and the optics are the entire difference.
+
+Worth noting the arc: this BOM has grown from €258 to €348 as estimates met verified prices and
+missing items surfaced. That is the normal trajectory of a parts list meeting reality, and it is
+better to see it now than at checkout. The bundled lens does work, so **€298 is a legitimate
+starting point** and the better optic can follow once Phase 0 proves the module. You are paying for someone else's ISP tuning, in a box.
 Whether that is worth €125–235 depends on whether you can source a Raspberry Pi, and on how much
 the better sensor is worth to you.
 
