@@ -961,27 +961,36 @@ they determine whether this build is viable, competitive, or dead.
 
 ### The Phase 0 shopping list
 
-**You do not need the rest of the BOM to run these tests.** All four need a camera, a meter, and a
-Linux laptop you already own.
+**Only test 1 is binary.** The other three determine how *good* the build is, not whether it works
+— so the entry cost is one purchase, not three.
 
-| Item | Why | ≈ EUR |
+| | Cost | When |
 |---|---|---|
-| **Arducam B0587** (IMX678, USB 2.0, M12) | the thing under test | ~150 |
-| **USB power meter** with Wh/mAh totaliser | test 2 — `P_cam` and `t_on` | 20 |
-| **USB hub with per-port power switching** (`uhubctl`-compatible) | test 4 — scripted power-cycling with no custom hardware | 20 |
-| Linux laptop | `v4l2-ctl` and everything else | already owned |
-| | **total** | **≈ 190** |
+| **Arducam B0587** (IMX678, USB 2.0, M12) | **~€150** | **now — answers the binary question** |
+| USB power meter with Wh/mAh totaliser | €20 | when power design starts (Phase 3), or with the sibling build |
+| `uhubctl`-compatible USB hub | €20 | Phase 3, or skip and cycle by hand |
 
-The hub is the neat part: **`uhubctl`** controls per-port power on hubs that support it, so 200
-power cycles can be scripted without first building a load switch, an RTC or a battery rail.
+#### What the camera and a laptop alone will tell you
+
+Everything that could kill the project, and several of the smaller unknowns:
+
+- **Test 1 — exposure linearity.** Disable AE, sweep `exposure_time_absolute` across several stops,
+  photograph a static evenly-lit surface, plot mean luma against commanded value. Pure software.
+- **Enumerate every control** — `v4l2-ctl --list-ctrls-menus` gives the real ranges and reveals
+  whether a compression-quality control exists.
+- **Confirm MJPEG** appears in the format list and that a captured frame opens as a `.jpg`.
+- **Judge the image quality** — shoot a real sunset and look at it. This is the equivalent of the
+  sibling build's Phase 0 and it needs no hardware beyond the camera.
+
+The power meter serves tests 2 and 3, which decide where the crossover sits and whether tier C is
+worth building — decision-relevant, but not until the power design begins. The hub serves test 4
+only, which can wait for a real load switch; twenty manual replugs will reveal whether enumeration
+is reliable and `/dev/videoN` stays put.
 
 **Do not buy yet:** the lens, cells, bay charger, host board, boost converter, RTC, enclosure,
 filter, vent plug, button or inserts — roughly **€200 of parts that all depend on Phase 0 passing**.
-The bundled 100° lens is perfectly adequate for testing, because what is under evaluation is the
-sensor and the exposure control, not the optics.
-
-This is the same discipline as the sibling build's "items 1–4 plus a power meter": spend the
-smallest amount that can answer the binary question.
+The bundled 100° lens is adequate for testing, because what is under evaluation is the sensor and
+the exposure control, not the optics.
 
 ### What can be determined before buying
 
@@ -1099,7 +1108,7 @@ the host registers a genuine disconnect.
 ## Order of work
 
 **Phase 0 — the four measurements above**, on the shopping list above and nothing more. If exposure
-control fails, this architecture is dead and you have spent ~€190 finding out — against roughly
+control fails, this architecture is dead and you have spent **€150** finding out — against roughly
 €350 for the full build.
 
 **Phase 1 — capture and ramp.** Interval accuracy, locked exposure, atomic writes, metadata log.
