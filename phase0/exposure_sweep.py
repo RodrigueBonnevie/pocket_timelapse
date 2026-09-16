@@ -29,6 +29,7 @@ WIDTH, HEIGHT = 3840, 2160     # test the configuration the build will actually 
 SETTLE_TOL = 0.005             # frames agree to 0.5 % -> the change has landed
 SETTLE_MAX = 40                # give up rather than hang on a drifting scene
 RESPOND_MIN = 0.03             # a step must lift luma this much to count as responding
+WHITE_BALANCE_K = 5000         # daylight-ish; locked, never automatic
 STOPS, PER_STOP, RUNS = 6, 2, 2
 RAMP_STEP_LIMIT = 1 / 6        # the ramp's per-frame budget, from ramp.py
 
@@ -222,7 +223,12 @@ def main():
         print(f"format: {fcc} {w}x{h}")
 
         cam.set(v4l2.CID_EXPOSURE_AUTO, v4l2.EXPOSURE_MANUAL)
+        # Disabling AWB without also fixing a temperature leaves the ISP in an
+        # uninitialised gain state - on this module the green channel collapses
+        # to zero. Locking white balance means setting it, not just switching
+        # the automatic off.
         cam.set(v4l2.CID_AUTO_WHITE_BALANCE, 0)
+        cam.set(v4l2.CID_WHITE_BALANCE_TEMPERATURE, WHITE_BALANCE_K)
         if cam.get(v4l2.CID_EXPOSURE_AUTO) != v4l2.EXPOSURE_MANUAL:
             sys.exit("Camera refused manual exposure mode - that is a test-1 failure.")
 

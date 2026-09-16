@@ -57,6 +57,24 @@ the response does not need to be linear — only well-behaved.
 | Response shape | luma ~ exposure^1.02 — near linear |
 | Settling | **6 frames / ~225 ms** after a change |
 
+### A trap worth knowing about
+
+**Disabling auto white balance without also setting a temperature breaks the
+image.** On this module the green channel collapses to zero and everything
+comes out magenta:
+
+| | R | G | B |
+|---|---|---|---|
+| AWB off, no temperature set | 131.5 | **0.0** | 102.0 |
+| AWB on | 85.6 | 90.9 | 86.7 |
+| AWB off, 2800 K set | 86.8 | 93.0 | 81.0 |
+
+It looks exactly like a missing IR-cut filter, which would have been a much
+worse problem and would have decided which lens variant to buy. It isn't.
+**`camera.py` must set `white_balance_temperature` whenever it disables
+`white_balance_automatic`** — locking white balance means setting it, not just
+switching the automatic off.
+
 Also established:
 
 - **MJPEG at 3840×2160 @ 25 fps** is offered, and frames are valid standalone
@@ -66,11 +84,14 @@ Also established:
   Arducam's general wiki does apply to this part.
 - **No JPEG compression-quality control exists.** `storage.py` cannot adjust
   quality to fit a session budget and must budget by interval instead.
-- **No autofocus control.** `Focus, Absolute` (1..831) is software-set and
-  stays put — better for timelapse than an autofocus that might hunt.
-- **4K frames were 210–338 kB** on an indoor scene, far below the 2.2 MB the
-  storage model assumes. A detailed daylight scene will be larger, but the
-  storage budget looks conservative.
+- **`Focus, Absolute` (1..831) is a working motorised focus**, with no
+  autofocus to fight — set it in software and it stays. It needs roughly a
+  second to move; a shorter wait reads the old position and makes the control
+  look inert.
+- **4K frames were ~500 kB** on an indoor scene, against the 2.2 MB the storage
+  model assumes. A detailed daylight scene will be larger, but the budget looks
+  conservative. (Measurements taken before the white-balance fix read ~320 kB —
+  a zeroed channel compresses better, so discard those.)
 - **Pipeline lag is 6 frames.** Queued buffers carry the previous exposure, so a
   fixed settle count is not enough — `measure_lag()` determines it at runtime.
   This is also the settling component of `t_on`.
