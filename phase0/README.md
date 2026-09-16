@@ -1,69 +1,82 @@
 # Phase 0 — the tests that decide the UVC build
 
-Run these before buying anything beyond the camera. See
-[../UVC-BUILD.md](../UVC-BUILD.md) §8 for what each one determines.
-
-**Only test 1 is binary.** If exposure control cannot be driven finely and
+See [../UVC-BUILD.md](../UVC-BUILD.md) §8 for what each test determines.
+**Only test 1 is binary**: if exposure cannot be commanded finely and
 repeatably, the sunset ramp is impossible and no other result matters.
 
-## Requirements
+## Requirements: none
+
+`v4l2.py` talks to the kernel through `ioctl` directly, so Phase 0 needs
+nothing installed beyond python3 and Pillow. The camera itself is handled by
+the kernel's built-in `uvcvideo` driver — plug it in and it appears.
+
+This is also why the bindings are written rather than shelling out to
+`v4l2-ctl`: the eventual `camera.py` runs on a minimal embedded host where
+adding packages is inconvenient.
 
 ```bash
-sudo apt install v4l-utils python3-pil     # Debian/Ubuntu
+./probe.py              # what the camera says it can do — read-only
+./exposure_sweep.py     # test 1
 ```
 
-Nothing else — no SBC, no battery, no load switch. A laptop and the camera.
+## Setting up the shot
 
-## Test 1 — exposure linearity
+**This matters more than anything else in the procedure.** Aim at a surface
+that is:
 
-```bash
-./exposure_sweep.py                 # auto-detects via /dev/v4l/by-id
-./exposure_sweep.py /dev/video0     # or name the device
-```
+- **static** — nothing moving, no screens in frame
+- **evenly lit by steady artificial light** — daylight drifts during the run and
+  the drift reads as a camera fault
+- **filling the frame**, mid-tone, not clipping
 
-Point the camera at a **static, evenly lit surface** that will not change for
-the duration — a blank wall under steady artificial light. Daylight drifts, and
-the drift reads as non-linearity.
+A blank wall under a lamp is ideal. The script selects the responsive part of
+the exposure range automatically and will tell you if too little of it responds,
+which almost always means the scene is clipping.
 
-The script sweeps `exposure_time_absolute` up a half-stop ladder, captures a
-frame at each step, and repeats the whole sweep to test repeatability.
+## Reading the result
 
-### What it produces
-
-| File | Contents |
+| Check | Why it is the criterion |
 |---|---|
-| `phase0-results/formats.txt` | supported formats and frame rates — **confirm MJPEG is present** |
-| `phase0-results/controls.txt` | every UVC control with real ranges — check for a compression-quality control |
-| `phase0-results/sweep.csv` | commanded value, readback, measured luma, per run |
-| `phase0-results/run*_exp*.jpg` | the frames themselves — **look at them** |
+| **monotonic** | every command must move the image the right way |
+| **repeatable** | the same command twice must give the same exposure — hysteresis is what makes a ramp flicker |
+| **commands honoured** | readback must match; a clamped or ignored value is a silent failure |
 
-### Reading the result
+The reported power-law exponent is **informational only**. The ISP applies a
+tone curve, and `ramp.py` is a closed loop that measures luma and corrects, so
+the response does not need to be linear — only well-behaved.
 
-| Signal | Meaning |
+## Results on the Arducam B0587 — 2026-09-16
+
+**Test 1: PASS.**
+
+| | |
 |---|---|
-| **slope ≈ 1.0, R² > 0.98** | exposure is linear in log-log, as it should be |
-| **monotonic** | every step raised luma; a plateau means quantisation or an ignored command |
-| **repeatability < 3 %** | the same command gives the same exposure on a second pass |
-| **readback matches** | the camera accepted the value rather than clamping it |
+| Monotonic | 8/8 steps |
+| Repeatability | **0.80 %** worst gap between runs (threshold 3 %) |
+| Commands honoured | 9/9 accepted verbatim |
+| Response shape | luma ~ exposure^1.02 — near linear |
+| Settling | **6 frames / ~225 ms** after a change |
 
-Curvature alone is survivable — a calibration table fixes it. **Plateaus, poor
-repeatability, or commands that report as set but do not change the image are
-fatal**, and the last of those is documented as occurring on Arducam UVC
-hardware.
+Also established:
 
-## Also worth doing by hand
-
-- **Open a captured frame as `.jpg`.** Some MJPEG variants omit the Huffman
-  table and will not open standalone.
-- **Shoot a real sunset** out of a window at a fixed exposure and look at the
-  files. This is the image-quality judgement, and it needs no hardware.
-- **Check the corners** for vignetting — Arducam's ISP has no lens shading
-  correction, so what you see is what you get until you correct it in post.
-- **Twenty manual replugs**, checking whether enumeration stays reliable and the
-  `by-id` path stays stable. A crude stand-in for test 4.
+- **MJPEG at 3840×2160 @ 25 fps** is offered, and frames are valid standalone
+  JPEGs (`ffd8ff` SOI, open directly in PIL). The Huffman-table concern does not
+  apply to this module.
+- **`Exposure Time, Absolute` is 1..5000 in 0.1 ms units** — the range from
+  Arducam's general wiki does apply to this part.
+- **No JPEG compression-quality control exists.** `storage.py` cannot adjust
+  quality to fit a session budget and must budget by interval instead.
+- **No autofocus control.** `Focus, Absolute` (1..831) is software-set and
+  stays put — better for timelapse than an autofocus that might hunt.
+- **4K frames were 210–338 kB** on an indoor scene, far below the 2.2 MB the
+  storage model assumes. A detailed daylight scene will be larger, but the
+  storage budget looks conservative.
+- **Pipeline lag is 6 frames.** Queued buffers carry the previous exposure, so a
+  fixed settle count is not enough — `measure_lag()` determines it at runtime.
+  This is also the settling component of `t_on`.
 
 ## Tests 2–4
 
-These need a USB power meter (`P_cam`, `t_on`, suspend current) and a
+Need a USB power meter (`P_cam`, `t_on`, suspend current) and a
 `uhubctl`-compatible hub (scripted power cycling). They decide how *good* the
-build is, not whether it works, so they can wait until the power design starts.
+build is, not whether it works, so they wait until the power design starts.
