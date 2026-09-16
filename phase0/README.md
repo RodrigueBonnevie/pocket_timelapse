@@ -16,8 +16,14 @@ adding packages is inconvenient.
 
 ```bash
 ./probe.py              # what the camera says it can do — read-only
+./focus_assist.py       # turn the lens barrel until the number peaks
 ./exposure_sweep.py     # test 1
+./snap.py               # a few 4K frames to look at, into ~/Pictures/arducam
 ```
+
+**Focus first.** The lens ships out of focus and there is no software control
+for it, so every other measurement is taken through a blurred image until the
+barrel has been set.
 
 ## Setting up the shot
 
@@ -84,10 +90,16 @@ Also established:
   Arducam's general wiki does apply to this part.
 - **No JPEG compression-quality control exists.** `storage.py` cannot adjust
   quality to fit a session budget and must budget by interval instead.
-- **`Focus, Absolute` (1..831) is a working motorised focus**, with no
-  autofocus to fight — set it in software and it stays. It needs roughly a
-  second to move; a shorter wait reads the old position and makes the control
-  look inert.
+- **`Focus, Absolute` (1..831) does nothing.** It is advertised by the UVC
+  descriptor and accepts values, but stepping it from 1 to 831 changes the
+  image by 1.10x the frame-to-frame noise floor, and whole-frame edge energy is
+  identical to two decimal places across the range. This is a **fixed M12
+  lens** — focus it by turning the barrel, with `focus_assist.py`.
+
+  Worth noting as a caution: comparing frame *hashes* suggested the control
+  worked, because two captures of a static scene differ at the pixel level
+  anyway. Any test for "did this control do something" has to measure the
+  change against the noise floor, not against zero.
 - **4K frames were ~500 kB** on an indoor scene, against the 2.2 MB the storage
   model assumes. A detailed daylight scene will be larger, but the budget looks
   conservative. (Measurements taken before the white-balance fix read ~320 kB —
