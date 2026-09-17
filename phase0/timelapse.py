@@ -154,6 +154,40 @@ def measure(jpeg):
     return 0.299 * r + 0.587 * g + 0.114 * b, r, g, b
 
 
+def acquire(cam, ramp, target):
+    """Place the exposure before the first frame is written.
+
+    The per-frame step limit exists to keep the finished sequence from
+    flickering. Applied to the initial acquisition it does the opposite of its
+    job: starting several stops off, the ramp needs dozens of frames to crawl
+    into range and every one of them lands in the sequence. A clipped frame
+    makes it worse, because luma pins near 255 - however overexposed the frame
+    really is, the error never reads worse than about -1.4 stops, so the crawl
+    is slower than the true error warrants.
+
+    Brightness is monotonic along the ladder, so bisect it instead: about seven
+    probes to place the exposure, none of them recorded, no step limit.
+    """
+    lo, hi, probes = 0, len(ramp.ladder) - 1, 0
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        exp, gain = ramp.ladder[mid]
+        cam.set(v4l2.CID_EXPOSURE_ABSOLUTE, exp)
+        cam.set(v4l2.CID_GAIN, gain)
+        for _ in range(DRAIN):
+            frame = cam.grab()
+        probes += 1
+        if measure(frame)[0] <= target:
+            lo = mid                      # still short of target: go brighter
+        else:
+            hi = mid - 1
+    ramp.i = lo
+    exp, gain = ramp.setting
+    cam.set(v4l2.CID_EXPOSURE_ABSOLUTE, exp)
+    cam.set(v4l2.CID_GAIN, gain)
+    return probes
+
+
 def write_frame(path, data):
     """Atomic: a power cut costs at most the frame in flight, never the
     sequence. The directory fsync is what makes the rename itself durable."""
@@ -244,25 +278,28 @@ def main():
         if cam.get(v4l2.CID_EXPOSURE_AUTO) != v4l2.EXPOSURE_MANUAL:
             sys.exit("Camera refused manual exposure - cannot ramp.")
 
-        # Start mid-ladder and let the first few frames walk to the scene
-        # rather than guessing at it.
-        ramp = Ramp(ladder, args.target, len(ladder) // 2)
-        exp, gain = ramp.setting
-        cam.set(v4l2.CID_EXPOSURE_ABSOLUTE, exp)
-        cam.set(v4l2.CID_GAIN, gain)
+        ramp = Ramp(ladder, args.target, 0)
 
-        # Let the ISP's own AWB work out this scene's white balance, then freeze
-        # it. Switching AWB straight off from a cold plug-in can leave the ISP
-        # with uninitialised gains - the green channel collapses to zero and
-        # every frame comes out magenta. The gains survive until the camera
-        # loses power, which is why the fault only shows on the first session
-        # after plugging in, and why it is easy to convince yourself it is gone.
+        # AWB runs live through acquisition so that it converges on a correctly
+        # exposed image rather than a blown one, and is frozen once the exposure
+        # has been placed. Switching AWB straight off from a cold plug-in can
+        # leave the ISP with uninitialised gains - the green channel collapses
+        # to zero and every frame comes out magenta. Those gains survive until
+        # the camera loses power, which is why the fault only shows on the first
+        # session after plugging in, and why it is easy to convince yourself it
+        # has gone away.
         #
         # Freezing after convergence is also the right thing for a sunset: a
         # live AWB would spend the whole session neutralising exactly the colour
         # shift being filmed.
         cam.set(v4l2.CID_AUTO_WHITE_BALANCE, 1)
         cam.start()
+
+        probes = acquire(cam, ramp, args.target)
+        exp, gain = ramp.setting
+        print(f"acquired rung {ramp.i}/{len(ladder) - 1}: exposure {exp} gain {gain} "
+              f"({probes} probes, none recorded)")
+
         for _ in range(AWB_CONVERGE):
             cam.grab()
         cam.set(v4l2.CID_AUTO_WHITE_BALANCE, 0)
