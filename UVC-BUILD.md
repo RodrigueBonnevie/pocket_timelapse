@@ -940,6 +940,22 @@ Python on tier B; C/ESP-IDF on tier C. The imaging layer is thin because the cam
   drift. Model a session as a **list of windows**, not a single start/stop.
 - `ramp.py` — a sunset spans ~10 stops; naive auto-exposure strobes. Measure mean luma, correct by
   a **capped step of ≤1/6 stop per frame**. Shutter first to a motion-blur cap, then gain.
+
+  Two things learned building `phase0/timelapse.py`, both of which bite:
+
+  **Shutter and gain must be one ordered ladder, not two stages.** Given this module's silent
+  shutter cap, a loop that stages them will push exposure to the advertised maximum, observe no
+  change, and never hand over to gain. One monotonic axis makes the handover automatic and makes
+  the cap harmless rather than fatal.
+
+  **Rung spacing and the per-frame step limit are different numbers.** The step limit bounds how
+  fast the ramp may chase the sun; the rung is the smallest brightness change the ladder can
+  express, and therefore the size of the jump every correction makes. Setting both to 1/6 stop
+  leaves the loop with up to half a rung of standing error which it then closes in one visible
+  11 % step. Rungs at 1/12 stop track just as fast with half the quantisation. Never force a
+  minimum move of one rung when the rounded correction is zero — that makes the loop hunt
+  between two adjacent rungs forever, which is per-frame flicker of exactly the kind the capped
+  step exists to prevent.
 - `storage.py` — write `NNNNNN.jpg.tmp`, fsync, rename, fsync the directory. Power loss costs at
   most one frame. Log exposure, gain and lux per frame to `frames.csv`. Owns the storage budget.
 - `power.py` — RTC alarm, low-voltage threshold, recovery threshold, and clearing the alarm when
@@ -1063,6 +1079,62 @@ varies enormously.
 Curvature is survivable with a calibration table. Hysteresis, quantisation into a handful of steps,
 or the ISP overriding you is fatal.
 
+### Measured — the shutter stops at 14.4 ms whatever it claims (2026-09-17)
+
+Test 1 passed on the Arducam B0587, and that result stands: exposure is monotonic, repeatable to
+0.8 %, and every command is accepted verbatim. It is also, on its own, misleading. Test 1 asked
+whether exposure *behaves*. It never asked how much of it there is.
+
+There is not much.
+
+| | |
+|---|---|
+| `exposure_time_absolute` advertises | 1..5000, i.e. 0.1–500 ms |
+| Actually changes the image | 1..~144, i.e. 0.1–**14.4 ms** |
+| Shutter | **3.80 stops** |
+| Gain 0..100 | **1.10 stops** |
+| **Total usable range** | **4.91 stops** |
+| A sunset spans | **~10 stops** |
+
+Above ~144 the module accepts the value, reports it back verbatim, and ignores it. Ten times the
+exposure gives an identical frame. Nothing errors — which is precisely what makes it dangerous. A
+ramp that trusts readback will wind the control to 5000, sit there in the dark, and never reach for
+gain at all.
+
+**Three explanations were tested and eliminated:**
+
+- **Not the frame period.** The only slow mode the device offers is YUYV 320×320 at 5 fps — a
+  200 ms frame period. The ceiling moved from 7.2 ms to 14.4 ms and stopped. `VIDIOC_S_PARM` does
+  work, but only if set before streaming, and 4K advertises 25 fps alone so there is nothing to pick.
+- **Not a missing low-light mode.** Arducam's "Ultra Low Light Mode" is `Backlight Compensation`,
+  which on this unit is 0..2 rather than the documented 0..1. All three values plateau at 14.4 ms.
+- **Not `Exposure, Dynamic Framerate`.** Enabling it brightens the image ~2.7× and does not extend
+  the range by a single step.
+
+14.4 ms ÷ 2160 lines ≈ 6.7 µs per line — one full sensor readout. The firmware clamps integration
+to the sensor's internal frame length, and that length never changes, because what holds this
+camera to 25 fps is **USB 2.0 bandwidth**, not the sensor.
+
+**Could it be unlocked?** The module carries a Sonix extension unit
+(`{28f03370-6311-4a2e-ba2c-6890eb334016}`, unit 3). Selector 1 is the 4-byte ASIC register window
+and it reads stably, so the door is not locked. But that is the *bridge's* register space; the
+IMX678's own frame-length register sits behind an I²C master somewhere in undocumented Sonix
+territory, the ISP reprograms the sensor every frame, and one of the neighbouring selectors is
+plausibly the flash path. That is a reverse-engineering project with a bricking risk, and any
+firmware update undoes it.
+
+The decisive fact is commercial rather than technical: **Arducam sell long exposure as a separate
+product tier.** The B0588 (IMX662, USB 3.0) is advertised at up to 12,935,800 µs ≈ 12.9 s. This is
+not a bug to be worked around, it is a feature the B0587 does not have. Note the B0588 is 2 MP, so
+it is not a drop-in — it fails the 4K requirement outright.
+
+**Status: parked, not resolved.** ~4.9 stops is roughly half a sunset. Whether that is fatal or
+merely limiting is a question about pictures, not numbers, and `phase0/timelapse.py` exists to
+answer it against a real one. If it does prove fatal, the options cheapest-first are: ask Arducam
+whether the cap is a firmware constant (they ship firmware as an `.img` plus an ISP calibration
+`.bin`, and their forum is responsive); design around a partial sunset; or take the machine-vision
+fallback below, where the exposure register belongs to you.
+
 ### 2. `P_cam` and `t_on` — decides whether it is competitive
 
 Inline meter on the USB 5 V line. Measure steady draw while streaming, and time plug-in to first
@@ -1148,6 +1220,7 @@ Prove them by running a session to empty.
 | Risk | Mitigation |
 |---|---|
 | **Exposure control unusable** | Test 1, before any other spending. No workaround if it fails |
+| **Shutter caps at 14.4 ms on the B0587** | Measured. ~4.9 stops total against a sunset's ~10. Not a bug: Arducam sell long exposure as a separate tier (B0588, but 2 MP). Parked pending a real sunset test |
 | `P_cam` far above estimate | Test 2; tier C degrades gracefully since energy scales with interval |
 | USB suspend broken | Test 3; fall back to power-cycling, which is the assumed baseline anyway |
 | No crop room at 4K | Deliberate trade for low light. Frame carefully in the field |

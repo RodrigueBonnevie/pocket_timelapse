@@ -19,6 +19,7 @@ adding packages is inconvenient.
 ./focus_assist.py       # turn the lens barrel until the number peaks
 ./exposure_sweep.py     # test 1
 ./snap.py               # a few 4K frames to look at, into ~/Pictures/arducam
+./timelapse.py          # shoot a real sunset — see below
 ```
 
 **Focus first.** The lens ships out of focus and there is no software control
@@ -63,23 +64,35 @@ the response does not need to be linear — only well-behaved.
 | Response shape | luma ~ exposure^1.02 — near linear |
 | Settling | **6 frames / ~225 ms** after a change |
 
-### A trap worth knowing about
+### A trap worth knowing about — and a correction
 
-**Disabling auto white balance without also setting a temperature breaks the
-image.** On this module the green channel collapses to zero and everything
-comes out magenta:
+**Switching auto white balance off can leave the green channel at zero**, so
+every frame comes out magenta:
 
 | | R | G | B |
 |---|---|---|---|
-| AWB off, no temperature set | 131.5 | **0.0** | 102.0 |
+| AWB off from a cold plug-in | 131.5 | **0.0** | 102.0 |
 | AWB on | 85.6 | 90.9 | 86.7 |
-| AWB off, 2800 K set | 86.8 | 93.0 | 81.0 |
+| AWB off after AWB has run | 86.8 | 93.0 | 81.0 |
 
 It looks exactly like a missing IR-cut filter, which would have been a much
 worse problem and would have decided which lens variant to buy. It isn't.
-**`camera.py` must set `white_balance_temperature` whenever it disables
-`white_balance_automatic`** — locking white balance means setting it, not just
-switching the automatic off.
+
+**The original entry here concluded that setting `white_balance_temperature`
+was the fix. That was too confident.** Setting a temperature did make the fault
+go away, but so did simply having run AWB at some point earlier in the session:
+once the ISP has computed white-balance gains it keeps them until the camera
+loses power. The fault therefore only appears on the **first session after
+plugging in** — which is exactly when an unattended capture starts, and exactly
+why it is easy to convince yourself it has gone away. It could not be
+reproduced again on 2026-09-17 without a replug, so the precise mechanism
+remains unconfirmed.
+
+**What `timelapse.py` does instead**, which is robust under either explanation:
+let the ISP's own AWB converge for ~40 frames, freeze it by switching AWB off,
+then **verify the green channel is alive** and abort with a clear message if it
+is not. Locking after convergence is also the right thing for a sunset — a live
+AWB would spend the whole session neutralising the colour shift being filmed.
 
 Also established:
 
@@ -107,6 +120,58 @@ Also established:
 - **Pipeline lag is 6 frames.** Queued buffers carry the previous exposure, so a
   fixed settle count is not enough — `measure_lag()` determines it at runtime.
   This is also the settling component of `t_on`.
+
+## The shutter ceiling — the important negative result (2026-09-17)
+
+**`exposure_time_absolute` advertises 1..5000 (0.1–500 ms). Only about 1..144
+(0.1–14.4 ms) does anything.** Above that the module accepts the value, reports
+it back verbatim, and ignores it; ten times the exposure yields an identical
+frame.
+
+| | |
+|---|---|
+| Shutter, 0.9 – 14.4 ms | **3.80 stops** |
+| Gain, 0 – 100 | **1.10 stops** |
+| **Total** | **4.91 stops** |
+| A sunset spans | **~10 stops** |
+
+Eliminated as explanations: the frame period (a 200 ms frame at 5 fps still
+caps at 14.4 ms), `Backlight Compensation` a.k.a. "Ultra Low Light Mode"
+(0..2 here, all three plateau), and `Exposure, Dynamic Framerate` (brightens
+~2.7×, extends nothing). 14.4 ms ÷ 2160 lines ≈ 6.7 µs/line — one sensor
+readout. The cap is the sensor's internal frame length, which never changes
+because **USB 2.0 bandwidth**, not the sensor, is what holds this camera at
+25 fps.
+
+See [../UVC-BUILD.md](../UVC-BUILD.md) for the full write-up including the
+Sonix extension unit and why unlocking it is not worth attempting. **Parked,
+not resolved** — `timelapse.py` is here to find out whether ~4.9 stops ruins a
+sunset or merely shortens it.
+
+## Shooting a sunset
+
+```bash
+./timelapse.py --interval 5 --until 21:30
+./timelapse.py --interval 2 --duration 45m --target 110
+./timelapse.py --shutter-ceiling 5000     # pretend the cap is not there
+```
+
+Frames land in `~/Pictures/timelapse/<date>_<time>/` as `NNNNNN.jpg`, written
+atomically, alongside a `frames.csv` logging exposure, gain, ladder rung,
+luma, error in stops, and per-channel means for every frame.
+
+**The number to read afterwards is `PINNED`.** It marks frames where the ramp
+had reached the top of its range and the scene was still getting darker, and
+the summary reports the worst shortfall in stops. That is the measurement that
+decides whether the shutter cap matters:
+
+- never pinned → ~4.9 stops was enough for this sunset
+- pinned for the last few minutes → shorten the session, or start later
+- pinned for half the run → the cap is fatal for this use and the fallbacks in
+  UVC-BUILD.md apply
+
+Point it at the sunset well before you need it and let it settle; the ramp
+starts mid-ladder and walks to the scene over the first few frames.
 
 ## Tests 2–4
 
