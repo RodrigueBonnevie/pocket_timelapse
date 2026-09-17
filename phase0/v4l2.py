@@ -107,6 +107,17 @@ class Buffer(C.Structure):
                 ("length", u32), ("reserved2", u32), ("request_fd", i32)]
 
 
+class CaptureParm(C.Structure):
+    _fields_ = [("capability", u32), ("capturemode", u32),
+                ("timeperframe", Fract), ("extendedmode", u32),
+                ("readbuffers", u32), ("reserved", u32 * 4)]
+
+
+class StreamParm(C.Structure):
+    _fields_ = [("type", u32), ("capture", CaptureParm),
+                ("_raw", u8 * (200 - C.sizeof(CaptureParm)))]
+
+
 class Control(C.Structure):
     _fields_ = [("id", u32), ("value", i32)]
 
@@ -139,6 +150,8 @@ VIDIOC_QBUF = _IOWR(15, Buffer)
 VIDIOC_DQBUF = _IOWR(17, Buffer)
 VIDIOC_STREAMON = _IOW(18, i32)
 VIDIOC_STREAMOFF = _IOW(19, i32)
+VIDIOC_G_PARM = _IOWR(21, StreamParm)
+VIDIOC_S_PARM = _IOWR(22, StreamParm)
 VIDIOC_G_CTRL = _IOWR(27, Control)
 VIDIOC_S_CTRL = _IOWR(28, Control)
 VIDIOC_QUERYCTRL = _IOWR(36, QueryCtrl)
@@ -159,6 +172,10 @@ CID_WHITE_BALANCE_TEMPERATURE = 0x0098_091A
 CID_EXPOSURE_AUTO = 0x009A_0901
 CID_EXPOSURE_ABSOLUTE = 0x009A_0902
 CID_FOCUS_ABSOLUTE = 0x009A_090A
+# "Exposure, Dynamic Framerate". Off, the frame period caps exposure; on, the
+# camera may slow down to honour a longer one. A timelapse wants one frame, not
+# a frame rate, so this is free.
+CID_EXPOSURE_AUTO_PRIORITY = 0x009A_0903
 EXPOSURE_MANUAL = 1              # V4L2_EXPOSURE_MANUAL, both control namings
 
 
@@ -278,6 +295,19 @@ class Device:
         f.pix.field = 1                                     # NONE (progressive)
         self._io(VIDIOC_S_FMT, f)
         return fourcc(f.pix.pixelformat), f.pix.width, f.pix.height, f.pix.sizeimage
+
+    def frame_interval(self, numerator=None, denominator=None):
+        """Get or set seconds-per-frame. The frame period caps exposure, so a
+        long integration needs a slow rate - which a timelapse does not mind."""
+        p = StreamParm(type=BUF_TYPE_VIDEO_CAPTURE)
+        if numerator is not None:
+            p.capture.timeperframe.numerator = numerator
+            p.capture.timeperframe.denominator = denominator
+            self._io(VIDIOC_S_PARM, p)
+        else:
+            self._io(VIDIOC_G_PARM, p)
+        t = p.capture.timeperframe
+        return t.numerator, t.denominator
 
     def start(self, nbufs=4):
         self._io(VIDIOC_REQBUFS, RequestBuffers(count=nbufs,
