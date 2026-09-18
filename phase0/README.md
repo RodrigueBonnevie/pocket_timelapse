@@ -16,7 +16,8 @@ adding packages is inconvenient.
 
 ```bash
 ./probe.py              # what the camera says it can do — read-only
-./focus_assist.py       # turn the lens barrel until the number peaks
+./focus_preview.py      # live view in a browser while you turn the barrel
+./focus_assist.py       # the same metric as a terminal bar, no video
 ./exposure_sweep.py     # test 1
 ./snap.py               # a few 4K frames to look at, into ~/Pictures/arducam
 ./timelapse.py          # shoot a real sunset — see below
@@ -25,6 +26,32 @@ adding packages is inconvenient.
 **Focus first.** The lens ships out of focus and there is no software control
 for it, so every other measurement is taken through a blurred image until the
 barrel has been set.
+
+### Focusing the M12 lens
+
+There is no focus ring and no control to find — on an M12 (S-mount) lens the
+whole barrel screws in and out of the holder on a 0.5 mm-pitch thread, and that
+movement *is* the focus. `Focus, Absolute` in the UVC descriptor drives nothing.
+
+**It will feel seized, and on this unit it was: Arducam put glue on the thread**
+so focus survives shipping. Before applying more force, check for a set screw in
+the side of the lens holder (usually 1.5 mm hex) and for a lock ring under the
+lens — either will hold it solid. Then break the glue with steady torque on the
+knurled base, gripping the holder rather than the PCB so the load does not go
+through the sensor's solder joints.
+
+Turn it **very little**. A quarter turn is 0.125 mm of back focus, which at 100°
+is most of the range from close-up to infinity. Aim at something 100 m away with
+hard edges, keep that detail near the centre of frame (the metric only looks at
+the middle half), and re-lock the thread afterwards — a box that travels in a
+pocket will drift.
+
+`focus_preview.py` serves the camera's own MJPEG frames to a browser at
+`http://localhost:8080` with the sharpness number beside them, so you can see
+*what* is sharp rather than only *how* sharp. Exposure and white balance are
+left automatic there so it stays usable at dusk; that is the opposite of every
+other script here, and deliberate. It holds the camera open, so stop it before
+running a capture.
 
 ## Setting up the shot
 
