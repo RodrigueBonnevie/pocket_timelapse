@@ -38,7 +38,12 @@ from PIL import Image, ImageStat
 
 WIDTH, HEIGHT = 3840, 2160
 WHITE_BALANCE_K = 5000      # locked, never automatic - see the magenta trap in README
-SHUTTER_MIN = 9             # below ~1 ms one integer step exceeds the ramp budget
+# The control bottoms out at 1, and starting the ladder at 9 threw away 3.2
+# stops at exactly the end daylight needs. Below COARSE_BELOW one integer step
+# is bigger than the whole per-frame budget, so the ramp gets lumpy down there -
+# lumpy beats having no range at all, and an ND filter is the real fix.
+SHUTTER_MIN = 1
+COARSE_BELOW = 9
 SHUTTER_CEILING = 144       # measured 2026-09-17: above this the module ignores it
 GAIN_MAX = 100
 GAIN_STEP = 2
@@ -54,6 +59,8 @@ RUNG_STOPS = 1 / 12
 DEADBAND = 0.02             # stops; below this, leave it alone rather than hunt
 MAX_RUNGS = 6               # a bound on a bad stops-per-rung estimate, not on the ramp
 TARGET_LUMA = 100.0
+CLIP_LEVEL = 250            # counted as blown
+MAX_BLOWN = 2.0             # percent of frame allowed above CLIP_LEVEL
 # The driver fills all its buffers within ~160 ms of a control change and then
 # stalls for want of a free one, so every queued frame predates the change. The
 # drain therefore has to clear the queue AND outlast the measured 6-frame
@@ -97,9 +104,10 @@ class Ramp:
     nominally promises. Instead it learns stops-per-rung from what actually
     happened and sizes its next move from that."""
 
-    def __init__(self, ladder, target, start):
+    def __init__(self, ladder, target, start, max_blown=MAX_BLOWN):
         self.ladder = ladder
         self.target = target
+        self.max_blown = max_blown
         self.i = start
         self.stops_per_rung = RUNG_STOPS
         self._prev = None            # (index that luma belongs to, that luma)
@@ -118,10 +126,15 @@ class Ramp:
             if 0.002 < observed < 1.0:
                 self.stops_per_rung += 0.25 * (observed - self.stops_per_rung)
 
-    def update(self, luma):
+    def update(self, luma, blown):
         """Returns (error_stops, rungs_moved, pinned)."""
         self._learn(luma)
         err = math.log2(self.target / max(luma, 0.5))
+        if blown > self.max_blown:
+            # Metering the mean exposes for the ground and burns the sky off the
+            # top of the histogram. Shadows can be lifted later; clipped sky is
+            # gone for good, so highlights win the argument.
+            err = min(err, -0.5 * math.log2(blown / self.max_blown))
         at_top, at_bottom = self.i == len(self.ladder) - 1, self.i == 0
         pinned = (err > DEADBAND and at_top) or (err < -DEADBAND and at_bottom)
 
@@ -146,15 +159,21 @@ class Ramp:
 
 
 def measure(jpeg):
-    """DCT-scaled decode. A full 4K decode per frame would dominate a 2 s
-    interval, and the loop only needs a stable number, not a sharp image."""
+    """Mean luma, blown percentage, per-channel means.
+
+    DCT-scaled decode: a full 4K decode per frame would dominate a 2 s interval,
+    and the loop needs a stable number rather than a sharp image."""
     im = Image.open(io.BytesIO(jpeg))
     im.draft("RGB", (480, 270))
-    r, g, b = ImageStat.Stat(im.convert("RGB")).mean
-    return 0.299 * r + 0.587 * g + 0.114 * b, r, g, b
+    rgb = im.convert("RGB")
+    r, g, b = ImageStat.Stat(rgb).mean
+    h = rgb.convert("L").histogram()
+    n = sum(h)
+    luma = sum(v * c for v, c in enumerate(h)) / n
+    return luma, 100.0 * sum(h[CLIP_LEVEL:]) / n, r, g, b
 
 
-def acquire(cam, ramp, target):
+def acquire(cam, ramp, target, max_blown):
     """Place the exposure before the first frame is written.
 
     The per-frame step limit exists to keep the finished sequence from
@@ -177,7 +196,8 @@ def acquire(cam, ramp, target):
         for _ in range(DRAIN):
             frame = cam.grab()
         probes += 1
-        if measure(frame)[0] <= target:
+        luma, blown, *_ = measure(frame)
+        if luma <= target and blown <= max_blown:
             lo = mid                      # still short of target: go brighter
         else:
             hi = mid - 1
@@ -240,6 +260,9 @@ def main():
     ap.add_argument("--shutter-ceiling", type=int, default=SHUTTER_CEILING,
                     help=f"top of the useful shutter range (default {SHUTTER_CEILING}, measured)")
     ap.add_argument("--gain-max", type=int, default=GAIN_MAX)
+    ap.add_argument("--max-blown", type=float, default=MAX_BLOWN,
+                    help=f"%% of frame allowed above {CLIP_LEVEL} before highlights "
+                         f"override the mean (default {MAX_BLOWN}; 100 disables)")
     ap.add_argument("--out", type=Path, help="session directory")
     ap.add_argument("--device", help="defaults to the Arducam under /dev/v4l/by-id")
     args = ap.parse_args()
@@ -269,8 +292,8 @@ def main():
     print()
 
     csv = (out / "frames.csv").open("w")
-    csv.write("frame,unix,iso,exposure,gain,rung,luma,err_stops,moved,pinned,"
-              "bytes,r,g,b\n")
+    csv.write("frame,unix,iso,exposure,gain,rung,luma,blown_pct,err_stops,moved,"
+              "pinned,bytes,r,g,b\n")
 
     with v4l2.Device(dev) as cam:
         fcc, w, h, _ = cam.configure("MJPG", WIDTH, HEIGHT)
@@ -278,7 +301,7 @@ def main():
         if cam.get(v4l2.CID_EXPOSURE_AUTO) != v4l2.EXPOSURE_MANUAL:
             sys.exit("Camera refused manual exposure - cannot ramp.")
 
-        ramp = Ramp(ladder, args.target, 0)
+        ramp = Ramp(ladder, args.target, 0, args.max_blown)
 
         # AWB runs live through acquisition so that it converges on a correctly
         # exposed image rather than a blown one, and is frozen once the exposure
@@ -295,7 +318,7 @@ def main():
         cam.set(v4l2.CID_AUTO_WHITE_BALANCE, 1)
         cam.start()
 
-        probes = acquire(cam, ramp, args.target)
+        probes = acquire(cam, ramp, args.target, args.max_blown)
         exp, gain = ramp.setting
         print(f"acquired rung {ramp.i}/{len(ladder) - 1}: exposure {exp} gain {gain} "
               f"({probes} probes, none recorded)")
@@ -306,12 +329,12 @@ def main():
 
         for _ in range(DRAIN):
             frame = cam.grab()
-        _, r, g, b = measure(frame)
+        _, _, r, g, b = measure(frame)
         if g < 1.0:
             cam.set(v4l2.CID_WHITE_BALANCE_TEMPERATURE, WHITE_BALANCE_K)
             for _ in range(DRAIN):
                 frame = cam.grab()
-            _, r, g, b = measure(frame)
+            _, _, r, g, b = measure(frame)
         if g < 1.0:
             sys.exit("Green channel is dead - white balance never initialised.\n"
                      "Unplug the camera, plug it back in, and start again.")
@@ -319,7 +342,7 @@ def main():
 
         t0 = time.monotonic()
         deadline = t0
-        n = skipped = pinned_frames = stale = 0
+        n = skipped = pinned_frames = stale = coarse = 0
         previous = None
         worst_deficit = 0.0
         pinned_since = None
@@ -343,14 +366,14 @@ def main():
                     frame = cam.grab()
                     stale += 1
                 previous = frame
-                luma, r, g, b = measure(frame)
+                luma, blown, r, g, b = measure(frame)
                 exp, gain = ramp.setting
                 wall = time.time()
 
                 path = out / f"{n:06d}.jpg"
                 write_frame(path, frame)
 
-                err, moved, pinned = ramp.update(luma)
+                err, moved, pinned = ramp.update(luma, blown)
                 if pinned:
                     pinned_frames += 1
                     worst_deficit = max(worst_deficit, abs(err))
@@ -363,15 +386,21 @@ def main():
                 last_luma = luma
 
                 csv.write(f"{n},{wall:.3f},{datetime.fromtimestamp(wall).isoformat()},"
-                          f"{exp},{gain},{ramp.i},{luma:.3f},{err:+.4f},{moved},"
-                          f"{int(pinned)},{len(frame)},{r:.2f},{g:.2f},{b:.2f}\n")
+                          f"{exp},{gain},{ramp.i},{luma:.3f},{blown:.3f},{err:+.4f},"
+                          f"{moved},{int(pinned)},{len(frame)},{r:.2f},{g:.2f},"
+                          f"{b:.2f}\n")
                 csv.flush()
                 os.fsync(csv.fileno())
 
                 mark = "  PINNED" if pinned else ""
+                if exp < COARSE_BELOW and not mark:
+                    mark = "  coarse"
                 print(f"  {n:>5}  {datetime.fromtimestamp(wall):%H:%M:%S}  "
                       f"exp {exp:>4} gain {gain:>3}  luma {luma:6.2f}  "
-                      f"err {err:+.2f} st  {len(frame)/1000:5.0f} kB{mark}")
+                      f"blown {blown:5.2f}%  err {err:+.2f} st  "
+                      f"{len(frame)/1000:5.0f} kB{mark}")
+                if exp < COARSE_BELOW:
+                    coarse += 1
 
                 # Apply the next setting immediately, so it has the whole
                 # interval to settle instead of costing settling frames later.
@@ -398,6 +427,10 @@ def main():
         print(f"scene moved {abs(math.log2(max(last_luma,0.5)/max(first_luma,0.5))):.2f} "
               f"stops of measured luma, which is what was left AFTER the ramp "
               f"corrected - not the scene's own swing")
+    if coarse:
+        print(f"\n{coarse}/{n} frames sat below exposure {COARSE_BELOW}, where one "
+              f"integer step\nexceeds the ramp's per-frame budget - expect visible "
+              f"steps there.\nAn ND filter buys the same headroom smoothly.")
     if pinned_frames:
         print(f"\nPINNED for {pinned_frames}/{n} frames "
               f"({100*pinned_frames/max(n,1):.0f} % of the session)")

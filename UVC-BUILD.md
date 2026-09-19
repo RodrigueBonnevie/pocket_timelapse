@@ -265,7 +265,7 @@ complexity bought for information the web page presents better.
 | 2 | 2 × **protected** 18650 + quality hot-swap holder | 7.0 Ah / 25.9 Wh | 22 |
 | 3 | 16 mm IP65 illuminated pushbutton + driver transistor | input and status in one hole | 10 |
 | 4 | IP65 box ≈120×80×55 mm — or 3D printed | enclosure, designed to open | 18 |
-| 5 | 37 mm screw-in UV filter + O-ring | optical window | 12 |
+| 5 | 37 mm screw-in UV filter + O-ring | optical window; **also the ND mount** — see the exposure floor | 12 |
 | 6 | PTFE vent plug + silica gel | condensation control | 8 |
 | 7 | 1/4"-20 threaded inserts | tripod / clamp mount | 5 |
 | | | **subtotal** | **≈ 90** |
@@ -1135,6 +1135,54 @@ whether the cap is a firmware constant (they ship firmware as an `.img` plus an 
 `.bin`, and their forum is responsive); design around a partial sunset; or take the machine-vision
 fallback below, where the exposure register belongs to you.
 
+### Measured — and the other end is capped too (2026-09-18)
+
+The ceiling above has a floor to match, and together they are the more important result. Pointed at
+an ordinary daylit scene, the B0587 at its **absolute minimum** — `exposure_time_absolute` = 1
+(0.1 ms), gain 0 — was still **2.3 stops overexposed with 48 % of the frame blown**.
+
+There is no metering strategy that fixes that. The lens is fixed-aperture with no iris, so exposure
+time is the only lever, and it has hit the end of it. The camera is simply too sensitive for
+daylight, which is exactly what you would expect of a surveillance part built to see in the dark.
+
+| | |
+|---|---|
+| Minimum exposure | 0.1 ms, gain 0 |
+| Still over, on a daylit scene | **2.3 stops** |
+| Frame blown at that setting | **48 %** |
+| To also sit above 0.9 ms, where the ramp is smooth | **~5.5 stops** |
+
+**So the usable window is narrower at both ends than this document assumed.** Too sensitive for
+daylight without attenuation; capped at 14.4 ms at the dark end. What is left is dusk — which is
+the subject, so this is survivable, but the margin either side is much thinner than planned and
+**ND choice becomes a per-shoot decision rather than a fit-and-forget one.**
+
+**The fix is the optical window.** The enclosure already carries a 37 mm screw-in filter (BOM item
+5), so making that an ND costs nothing structurally — it becomes a consumable chosen per shoot.
+
+| Goal | Attenuation | Filter |
+|---|---|---|
+| Correct exposure on a daylit scene | ~2.3 stops | ND4 – ND8 |
+| Correct *and* above 0.9 ms, so the ramp stays smooth | ~5.5 stops | ND32 – ND64 |
+
+The tension is unavoidable and worth stating plainly: **ND buys headroom at the bright end and
+costs it at the dark end, where there is already too little.** A fixed ND cannot be removed
+mid-session, so a sunset-to-night run either starts clipped or ends pinned. Do not reach for a
+variable ND to escape this — on a lens this wide they cross-polarise into visible banding across
+the sky, which is precisely the part of the frame this camera is for.
+
+**Two quantisation notes**, both learned by getting them wrong in `phase0/timelapse.py`:
+
+- Below ~0.9 ms one integer count of the control is a larger change than the ramp's entire
+  per-frame budget, so the bottom of the range is inherently steppy. The ladder still goes down
+  there, because lumpy beats having no range at all, and frames taken there are flagged. **An ND
+  filter buys the same headroom smoothly**, which is the real argument for it over simply
+  extending the ladder.
+- Metering the mean is wrong for this subject. A bright sky over darker ground pulls the mean down,
+  the ramp exposes for the ground, and the sky burns off the top of the histogram. `timelapse.py`
+  now measures the fraction of the frame above 250 and lets highlights override the mean when it
+  exceeds a limit. Shadows can be lifted afterwards; clipped sky cannot.
+
 ### 2. `P_cam` and `t_on` — decides whether it is competitive
 
 Inline meter on the USB 5 V line. Measure steady draw while streaming, and time plug-in to first
@@ -1221,6 +1269,8 @@ Prove them by running a session to empty.
 |---|---|
 | **Exposure control unusable** | Test 1, before any other spending. No workaround if it fails |
 | **Shutter caps at 14.4 ms on the B0587** | Measured. ~4.9 stops total against a sunset's ~10. Not a bug: Arducam sell long exposure as a separate tier (B0588, but 2 MP). Parked pending a real sunset test |
+| **Too sensitive for daylight** | Measured: 2.3 stops over at minimum exposure, 48 % blown, fixed aperture so nothing left to turn down. ND on the 37 mm window; ND32-ND64 to also clear the steppy bottom of the range |
+| **ND helps one end and hurts the other** | A fixed ND cannot come off mid-session, so sunset-to-night either starts clipped or ends pinned. Pick per shoot; avoid variable ND, which bands across wide skies |
 | `P_cam` far above estimate | Test 2; tier C degrades gracefully since energy scales with interval |
 | USB suspend broken | Test 3; fall back to power-cycling, which is the assumed baseline anyway |
 | No crop room at 4K | Deliberate trade for low light. Frame carefully in the field |

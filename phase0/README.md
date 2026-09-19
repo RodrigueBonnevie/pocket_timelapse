@@ -175,30 +175,76 @@ Sonix extension unit and why unlocking it is not worth attempting. **Parked,
 not resolved** — `timelapse.py` is here to find out whether ~4.9 stops ruins a
 sunset or merely shortens it.
 
+## The exposure floor — the other end, and it also bites (2026-09-18)
+
+Pointed at an ordinary daylit scene at the **minimum** the camera offers —
+`exposure_time_absolute` = 1 (0.1 ms), gain 0 — the frame was still **2.3 stops
+overexposed, 48 % of it blown**. The lens is fixed-aperture, so exposure time is
+the only lever and it is already at the stop.
+
+```
+acquired rung 0/105: exposure 1 gain 0
+  0  exp 1 gain 0  luma 179.64  blown 48.40%  err -2.30 st  PINNED
+PINNED for 8/8 frames (100 % of the session)
+worst shortfall 2.32 stops beyond the camera's range
+```
+
+**Fit an ND filter for anything brighter than dusk.** ND4–ND8 to be merely
+correct; ND32–ND64 to also land above 0.9 ms, where the ramp is smooth rather
+than steppy. It screws onto the same 37 mm window the enclosure already uses.
+
+The window between the two limits is narrow: too sensitive for daylight, capped
+at 14.4 ms at the dark end. Dusk is what is left, which is the subject — but ND
+is a per-shoot decision, and a fixed ND cannot come off mid-session, so
+sunset-to-night either starts clipped or ends pinned.
+
+### Two things this changed in timelapse.py
+
+**The ladder used to start at exposure 9, not 1**, on the reasoning that below
+~0.9 ms one integer count is a bigger change than the ramp's whole per-frame
+budget. True, but it silently discarded **3.17 stops at exactly the end daylight
+needs**. The floor is now 1; frames below 9 are flagged `coarse` in the log and
+counted in the summary, because the steps there really are visible. Lumpy beats
+having no range.
+
+**Metering the mean is wrong for this subject.** A bright sky over darker ground
+pulls the mean down, the ramp exposes for the ground, and the sky burns off the
+top of the histogram — which is what "the whole sky is overexposed" turned out
+to be, on top of the floor. It now measures the fraction of the frame above 250
+and lets highlights override the mean when that exceeds `--max-blown`
+(default 2 %, `100` disables). Default 2 % is strict when half the frame is
+legitimately near-white; for a sunset try 5, and tune from the `blown_pct`
+column in `frames.csv`.
+
 ## Shooting a sunset
 
 ```bash
 ./timelapse.py --interval 5 --until 21:30
 ./timelapse.py --interval 2 --duration 45m --target 110
+./timelapse.py --max-blown 5              # looser highlight guard, for bright skies
 ./timelapse.py --shutter-ceiling 5000     # pretend the cap is not there
 ```
 
 Frames land in `~/Pictures/timelapse/<date>_<time>/` as `NNNNNN.jpg`, written
 atomically, alongside a `frames.csv` logging exposure, gain, ladder rung,
-luma, error in stops, and per-channel means for every frame.
+luma, blown percentage, error in stops, and per-channel means for every
+frame.
 
 **The number to read afterwards is `PINNED`.** It marks frames where the ramp
-had reached the top of its range and the scene was still getting darker, and
-the summary reports the worst shortfall in stops. That is the measurement that
-decides whether the shutter cap matters:
+was already at one end of its range and the scene kept going that way — too
+dark at the top, too bright at the bottom — and the summary reports the worst
+shortfall in stops. That is the measurement that decides whether the camera's
+range is enough:
 
-- never pinned → ~4.9 stops was enough for this sunset
+- never pinned → the range was enough for this sunset
+- pinned at the *start* → too bright; fit an ND filter
 - pinned for the last few minutes → shorten the session, or start later
 - pinned for half the run → the cap is fatal for this use and the fallbacks in
   UVC-BUILD.md apply
 
-Point it at the sunset well before you need it and let it settle; the ramp
-starts mid-ladder and walks to the scene over the first few frames.
+Exposure is placed by bisection before the first frame is written — about
+seven probes, none of them recorded — so frame 0 is already correct and there
+is no run-in to discard.
 
 ## Tests 2–4
 
