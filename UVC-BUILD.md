@@ -430,6 +430,10 @@ The same IMX678 appears behind completely different silicon, and **the ISP deter
 far more than the sensor does**, because the tuning lives there. Two modules with identical sensor
 specs can be entirely different cameras.
 
+> **Add one criterion to this section that it originally lacked: the exposure range, which no vendor
+> publishes.** It is the specification that decided this build, and it cost a module to discover.
+> See "Is another module the answer?" below for the survey and the buying heuristic.
+
 > **The bridge-versus-ISP trap.** The Cypress/Infineon **CX3** is a *MIPI-to-USB bridge, not an
 > ISP*, and it is commonly used in USB camera modules. Per Infineon's documentation: *"UVC does not
 > support RAW or RGB, and almost all MIPI CSI-2 cameras only output RAW Bayer"*, and raw *"needs to
@@ -660,6 +664,27 @@ Different mount, different problem. A 16 mm C-mount lens on a 1/1.2" sensor give
 horizontal** — normal-to-tele, about a 50 mm equivalent, aimed at machine vision rather than
 scenery. You would want **6–8 mm**. Check the focal length before ordering, and note the C-mount
 body plus barrel is substantially bulkier than an M12 module — see the enclosure size warning.
+
+### Focus — set once, and deliberately not autofocus
+
+At 100° diagonal on this sensor the focal length is ~3.7 mm. At f/2 with a two-pixel circle of
+confusion the **hyperfocal distance is ~1.7 m**, so focused at infinity everything beyond about
+**0.9 m** is sharp. Nothing in a cityscape, a landscape or a sunset is ever closer than that.
+
+Autofocus would therefore solve a problem the optics already solve, while adding a real failure
+mode: a voice-coil lens can settle in a slightly different place after each power cycle, and this
+box power-cycles between sessions by design. In a timelapse that reads as a focus pop mid-sequence.
+
+If a software focus lever is ever wanted, the thing to ask for is **motorised focus, not
+autofocus** — a numeric position stored in config and reapplied every wake, repeatable rather than
+clever. Arducam sell motorised variants of this line. Given the hyperfocal figure it is not worth
+the money.
+
+**Decision: fixed lens, focused once by hand and locked.** Note this makes focus a *mechanical*
+setup step — see `phase0/README.md`; the B0587 arrives with glue on the thread, and its
+`Focus, Absolute` control is advertised but drives nothing.
+
+---
 
 ## Power budget
 
@@ -1171,6 +1196,37 @@ mid-session, so a sunset-to-night run either starts clipped or ends pinned. Do n
 variable ND to escape this — on a lens this wide they cross-polarise into visible banding across
 the sky, which is precisely the part of the frame this camera is for.
 
+**Why not a variable aperture instead?** M12 lenses with an iris do exist — manual and DC-auto-iris
+varifocals are sold for CCTV. None of the three routes survives contact:
+
+- **This camera cannot drive one.** The camera terminal's `bmControls` is `2e0000` — bits 1, 2, 3
+  and 5: auto-exposure mode, auto-exposure priority, exposure time absolute, focus absolute. **Bit
+  7, Iris (Absolute), is clear**, and there is no iris connector on the board. A DC-iris lens would
+  need its own driver and a control path that does not exist.
+- **Manual iris is the same fiddling as a filter**, and worse for being unrepeatable. A filter is at
+  least a known three stops.
+- **Diffraction caps it regardless.** The IMX678's pixels are 2.0 µm, and the Airy disk grows with
+  f-number:
+
+| Aperture | Airy disk | ≈ pixels |
+|---|---|---|
+| f/2 | 2.7 µm | 1.3 |
+| f/2.8 | 3.8 µm | 1.9 |
+| f/4 | 5.4 µm | 2.7 |
+| f/5.6 | 7.5 µm | 3.8 |
+| f/8 | 10.7 µm | 5.4 |
+
+That is **2–3 usable stops** from f/2 before the 4K detail the sensor was chosen for starts
+dissolving; 5.5 stops lands near f/14, which on this pitch is mush. **An iris cannot solve a range
+problem on a sensor this fine-pitched.**
+
+**And the filter fiddliness is a symptom, not an independent problem.** ND is only awkward here
+because 4.9 stops leaves nothing to give away. Lift the 14.4 ms cap and shutter alone spans 12.3
+stops — a permanently fitted ND8 would still leave ~9, positioned to cover daylight through dusk,
+and would never be touched again. **So the cap is also what makes the bright end unfixable**, which
+promotes "ask Arducam whether it is a firmware constant" from a nice-to-have to the highest-value
+open item in this document: it is the one change that fixes both ends at once.
+
 **Two quantisation notes**, both learned by getting them wrong in `phase0/timelapse.py`:
 
 - Below ~0.9 ms one integer count of the control is a larger change than the ramp's entire
@@ -1182,6 +1238,77 @@ the sky, which is precisely the part of the frame this camera is for.
   the ramp exposes for the ground, and the sky burns off the top of the histogram. `timelapse.py`
   now measures the fraction of the frame above 250 and lets highlights override the mean when it
   exceeds a limit. Shadows can be lifted afterwards; clipped sky cannot.
+
+### Is another module the answer? Surveyed 2026-09-19
+
+Both caps belong to the camera, so the obvious move is a different camera. Surveyed against the
+published specifications, that move is not available — and the reason is the most reusable thing in
+this document.
+
+**No UVC vendor publishes an exposure range.** Arducam's own datasheets for the USB 3.0 siblings of
+this module — B0497 (IMX678) and B0498 (IMX585) — list their UVC controls in full as:
+
+> Brightness, Contrast, Saturation, White Balance (Auto/Manual), Gain, Backlight Comp,
+> Exposure (Manual/Auto)
+
+No range. No minimum, no maximum. That is category-wide, and it is precisely how the B0587's 14.4 ms
+ceiling got past selection: **the one specification that decides whether this build works is not a
+published specification.** It can only be measured, which is what `phase0/` is for.
+
+**The heuristic that does work: absence of the claim is evidence of absence.** Arducam advertise long
+exposure loudly where a product has it — the B0588 page states "Long Exposure Supported", up to
+12,935,800 µs ≈ 12.9 s. The B0587 page is silent on the subject. Searching the category that way,
+the B0588 is the only UVC camera advertising long exposure at all, and it is 2 MP.
+
+#### The nearest alternatives
+
+| | **B0587** (owned) | B0497 USB3 | B0498 USB3 |
+|---|---|---|---|
+| Sensor | IMX678 1/1.8″ 2.0 µm | IMX678 1/1.8″ 2.0 µm | **IMX585 1/1.2″ 2.9 µm** |
+| Output format | **MJPEG** + YUY2 | **YUY2 only** | **YUY2 only** |
+| 4K frame rate | 25 fps | 15 fps | 15 fps |
+| Lens | M12 F1.65 fixed, 100° | M12 F1.65, 100° | C-mount 16 mm **F1.4–F16**, 50° |
+| Board | small | 34×34 mm | 34×34 mm |
+| Power | unmeasured | 0.87–1.48 W | 0.9–1.78 W |
+| **Exposure range** | **4.91 stops, measured** | **unpublished** | **unpublished** |
+
+**B0497 is the same sensor and the same lens as the B0587.** More money, no MJPEG, ten fewer frames
+per second, and an unknown exposure cap from what is almost certainly the same firmware lineage.
+Nothing to gain.
+
+**YUY2-only is architectural, not cosmetic.** A 4K YUY2 frame is 16.6 MB, so the host performs the
+JPEG encoding the camera was chosen to do — see the risk of the same name, which kills tier C and
+forces USB 3.0.
+
+**B0498 is the only one with a real argument.** Its 2.9 µm pixels gather **+1.07 stops** per pixel
+over the IMX678, and at that coarser pitch diffraction permits roughly four usable stops of its
+F1.4–F16 iris rather than the two to three the IMX678's 2.0 µm allows. Against that: the iris is
+manual, C-mount 16 mm at 50° breaks both the pocketable enclosure and the wide framing this project
+wants, and it is YUY2 only. "If you take the IMX585 C-mount route instead" above reaches the same
+conclusion from the focal length alone: 16 mm on a 1/1.2" sensor is a ~38° horizontal normal-to-tele
+view, and scenery wants 6–8 mm.
+
+#### Verdict — do not replace on paper
+
+The specification that matters is not published, so a swap is a coin toss on the only thing at issue.
+Two free actions come first, in this order:
+
+1. **Shoot a real sunset.** Every measurement so far has been against walls, rooms and a daylit
+   scene several stops harsher than the subject. If starting ~40 minutes before sunset keeps the
+   ramp off both pins, there is no problem worth spending money on.
+2. **Ask Arducam one precise question:** does the firmware extend the sensor's VMAX, and can the
+   14.4 ms cap be lifted? The constant 6.67 µs line time across five modes makes it answerable in a
+   sentence, and the B0588 proves they already ship firmware that does it. If the answer is yes, a
+   permanently fitted ND8 gives the fit-and-forget box and the module already owned is the right one.
+
+If both fail, the two honest exits are the ones this document already carries. **Machine vision**
+(USB3 Vision / GenICam) is the only category that publishes an exposure range — typically 10 µs to
+10 s, because deterministic control is the product — at €300–600, a vendor SDK or aravis in place of
+V4L2 plug-and-play, more power, and the forfeit of the tuned ISP that motivated this architecture.
+**CSI plus libcamera** never had the problem at all, exposing the sensor's exposure register directly
+alongside Raspberry Pi's tuning; re-checked on 2026-09-19, the Pi Zero 2 W remained sold out across
+European retailers, same substrate constraints, with none of the expected second-half 2026 stock
+landed.
 
 ### 2. `P_cam` and `t_on` — decides whether it is competitive
 
