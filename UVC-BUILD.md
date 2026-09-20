@@ -405,16 +405,26 @@ Worth recording because it **disproves a general claim made earlier in this docu
 uEye XC with a choice of *"the USB3 Vision protocol and plug-and-play functionality with the new
 **UVC** protocol."* **Machine-vision-grade cameras with UVC do exist.**
 
-That would be ideal — professional controls, v4l2, tier C still open, integrated ISP, German
-manufacture with long-term availability and no customs into Sweden.
+> **Correction, 2026-09-21.** This entry originally said the uEye XC left "tier C still open" and
+> that only its sensor undid it. Both halves were wrong. The technical manual for the UVC variant
+> (`UV-36L0XC`) states **"Interface connector: USB 3.0 Micro-B"** and **"Interface: USB 3.0 port
+> (Super Speed)"**, so the MCU host was never available, and **"Lens mount: Integrated"**, so there
+> is no thread for a chosen lens, a filter or the enclosure window. It fails on two structural
+> counts before the sensor is reached.
 
-**The sensor undoes it.** The uEye XC carries a 13 MP onsemi part, almost certainly the AR1335:
-1/3.2", 1.1 µm pixels, **15.9 mm² — −0.6 stops below the IMX708** and worse than every other option
-here. The resolution trap in professional packaging. It is also autofocus, which would need locking.
+It does confirm the useful part: **machine-vision-grade cameras with UVC and MJPEG exist.** The
+manual lists MJPEG at 4200×3120 up to 25 fps and 4200×2362 up to 30 fps — genuinely more crop room
+than 4K. Housing is 61 × 32 × 19 mm, die-cast magnesium, IP 30.
 
-**If IDS ever put a 1/1.8" STARVIS behind that UVC interface it would be close to ideal for this
-project.** Worth checking their range periodically. The uEye XLE is USB3 Vision only, so it carries
-the same interface problem as the Basler.
+The sensor is a 13 MP onsemi AR1335: 1/3.2", **1.1 µm pixels**, about **1.7 stops below the IMX678**
+per pixel, of which perhaps 0.7 comes back when 13 MP is downsampled to 4K. It is also autofocus,
+which would need locking.
+
+**And its exposure range appears nowhere in the technical manual** — not in the specification table,
+not anywhere. The word does not occur. Even a German industrial vendor publishing a full technical
+manual omits the one number that decides this build.
+
+The uEye XLE is USB3 Vision only, so it carries the same interface problem as the Basler.
 
 ### Where to buy — single units, ships to Sweden
 
@@ -1535,6 +1545,26 @@ SD card is a rounding error against that chain.
 
 **So the onboard ISP is not a nicety that saves post-processing. It is the component that makes the
 low-power architecture possible at all.** Any camera without one is a tier B camera by definition.
+
+#### Does the lesser-sensor argument revive machine vision? No
+
+The exposure arithmetic above — that a worse sensor with a far wider range wins — raises the
+question fairly. The answer is no, because **the sensor was never the blocker.** Three things were,
+and none of them is affected:
+
+| Blocker | Still true? |
+|---|---|
+| USB3 Vision / GenICam needs a Linux userspace | **yes** — kills tier C outright |
+| Raw output, no onboard JPEG | **yes** — 27× the file size, and an MCU cannot demosaic 8.3 MP |
+| USB 3.0 required by the USB3 Vision standard | **yes** — the ESP32-P4 has USB 2.0 HS only |
+
+The one machine-vision camera that escaped all three on paper was the IDS uEye XC, because it speaks
+UVC and emits MJPEG. Its technical manual, read above, shows it is USB 3.0 with an integrated lens.
+Out on two counts before the sensor matters.
+
+**The category that does fit is not machine vision but *embedded* vision** — e-con, Vadzo, Arducam —
+who build UVC cameras with tuned ISPs for USB 2.0 hosts. The industrial-grade member of that family
+is already on the shortlist below: e-con's e-CAM82_USB.
 
 #### The three candidates that keep tier C alive
 
