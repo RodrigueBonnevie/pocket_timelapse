@@ -40,6 +40,14 @@ describe theirs as having *"a dedicated, in-built ISP… the ISP and sensor have
 achieving excellent image quality under various lighting conditions including near darkness."*
 Standard interface, no vendor drivers.
 
+> **What this decision cost, learned in Phase 0.** Buying the tuning means buying the product
+> category it comes in, and that category is webcams and surveillance — which *stream*. The measured
+> consequences are the shutter ceiling and the exposure floor below. A camera whose ISP somebody else
+> tuned is a camera whose sensor registers somebody else owns: **vendor-tuned ISP** and
+> **caller-owned exposure** are sold to different markets and rarely coexist in one cheap USB device.
+> CSI plus libcamera is the exception, which is why the Pi was first choice. The other escape is to
+> give the ISP up deliberately — see "The astro-camera exit".
+
 ---
 
 ## Decision 2 — the sensor
@@ -1288,6 +1296,30 @@ wants, and it is YUY2 only. "If you take the IMX585 C-mount route instead" above
 conclusion from the focal length alone: 16 mm on a 1/1.2" sensor is a ~38° horizontal normal-to-tele
 view, and scenery wants 6–8 mm.
 
+#### Vendors who do publish
+
+e-con Systems are the nearest thing to an exception. They state exposure ranges on some products —
+the See3CAM_10CUG is specified at **128 µs – 1.45 s** (13.5 stops) and described as meeting long
+exposure requirements — and they sell into embedded vision rather than the webcam market.
+
+Their 4K STARVIS USB camera, **e-CAM82_USB**, is in several respects a better-engineered part than
+the B0587: MJPEG *and* YUY2, 4K at 30 fps, a tuned onboard ISP, M12 mount, 30×30×25 mm, and
+**0.73–1.07 W** against Arducam's unmeasured draw. Two caveats, both real. Its IMX415 has **1.45 µm**
+pixels against the IMX678's 2.0 µm — about **0.9 stops less** light per pixel, a low-light step
+backwards. And its exposure range is **not published either**, so it remains a blind buy unless
+asked.
+
+#### The question to ask before buying anything
+
+This is what the exercise produced, and it would have prevented the purchase that prompted it:
+
+> At 4K, what minimum and maximum `exposure_time_absolute` **actually change the image** — not the
+> range the UVC control advertises? On the Arducam B0587 the control accepts 1–5000 (0.1–500 ms) and
+> reports values back verbatim, but only about 1–144 has any effect.
+
+Ask e-con pre-sales, and ask Arducam the VMAX question about the B0587. Two emails, no money, and
+the answers decide the architecture.
+
 #### Verdict — do not replace on paper
 
 The specification that matters is not published, so a swap is a coin toss on the only thing at issue.
@@ -1309,6 +1341,98 @@ V4L2 plug-and-play, more power, and the forfeit of the tuned ISP that motivated 
 alongside Raspberry Pi's tuning; re-checked on 2026-09-19, the Pi Zero 2 W remained sold out across
 European retailers, same substrate constraints, with none of the expected second-half 2026 stock
 landed.
+
+### The astro-camera exit — explored 2026-09-20
+
+The survey above asks whether a better UVC camera exists. The better question is whether the product
+category is wrong, and it is. **Astronomy cameras are STARVIS sensors built for stills under full
+manual control, because that is the product rather than a side effect of it.**
+
+| | B0587 (owned) | **ZWO ASI585MC** |
+|---|---|---|
+| Sensor | IMX678 1/1.8″ 2.0 µm | **IMX585 1/1.2″ 2.9 µm** — +1.07 stops per pixel |
+| Resolution | 3840×2160 | 3840×2160 |
+| **Exposure range** | **4.91 stops, measured** | **32 µs – 2000 s ≈ 26 stops, published** |
+| ADC | 8-bit out of the ISP | 12-bit |
+| Buffer | none | 256 MB DDR3, decoupling readout from USB |
+| Power | unmeasured | 2.5 W max, uncooled |
+| Back focus | — | 6.5 mm, so C- and CS-mount both fit |
+| Price | ~€90 | ~€440 |
+
+Player One's Uranus-C uses the same sensor and QHY are a third source. All have free Linux SDKs with
+aarch64 builds, and all are supported by INDI.
+
+#### Yes, it is all raw Bayer — but that is not the whole story
+
+No astronomy camera carries a tuned ISP, deliberately: the market wants linear uncalibrated data and
+an ISP would destroy it. Bayer data is what crosses the cable.
+
+The SDK is less bare than that sounds. From `ASICamera2.h`:
+
+- Image types are `ASI_IMG_RAW8`, `ASI_IMG_RGB24`, `ASI_IMG_RAW16`, `ASI_IMG_Y8`. **RGB24 exists**,
+  but the library debayers on the host CPU — the camera never does.
+- Controls include `ASI_GAIN`, `ASI_EXPOSURE`, `ASI_GAMMA`, `ASI_WB_R`, `ASI_WB_B`, `ASI_OFFSET`,
+  `ASI_HARDWARE_BIN`, `ASI_HIGH_SPEED_MODE`. So there is a *rudimentary* colour pipeline — white
+  balance gains and a gamma curve — simply not a tuned one.
+- `ASISetROIFormat(id, width, height, bin, type)` sets region of interest, binning and pixel format.
+
+**What is given up** is lens shading correction, a colour matrix and a noise model — the tuning,
+exactly as Decision 1 defines it. Frames will be flatter and less accurate in colour than the
+Arducam's, and a wide lens will visibly vignette.
+
+**What comes back** is that all of those are fixed *once* rather than per frame: a flat frame
+corrects vignetting, a colour profile corrects the matrix, and a timelapse applies the identical
+correction to every frame in the sequence. That is routine in both astronomy and photography, and it
+is a far smaller job than tuning an ISP because it happens in post on a laptop instead of in
+firmware.
+
+#### Preview is not the problem
+
+Framing and focusing before recording is standard — every astronomy capture program does it. Two
+mechanisms make it cheap:
+
+- `ASISetROIFormat` reconfigures resolution, binning and format at will, so preview runs small and
+  short-exposure at a high frame rate, and capture switches to full frame and long exposure.
+- At half scale a debayer is nearly free. Each Bayer 2×2 quad becomes one RGB pixel directly — four
+  reads, no interpolation — so 3840×2160 Bayer collapses to 1920×1080 RGB with no filtering at all.
+  Real-time on very modest hardware; `phase0/focus_preview.py` would port almost unchanged.
+
+**Preview is cheap. Full-resolution demosaic plus JPEG encode is the expensive part**, and that is
+what decides the host.
+
+#### The host this forces
+
+| Host | 8.3 MP demosaic + JPEG | Verdict |
+|---|---|---|
+| x86 laptop | ~0.1–0.2 s | trivial |
+| Cortex-A55/A76 SBC | ~0.3–0.6 s | comfortable |
+| Cortex-A53, Pi Zero 2 W class | ~1–2 s | workable at intervals ≥5 s |
+| **ESP32-P4, tier C** | — | **impossible** |
+
+Tier C dies outright: no USB 3.0 host, and one 16-bit frame is ~16.6 MB before working buffers.
+**The astro path mandates tier B**, and costs more energy per frame, because the host is now awake
+doing work rather than waiting on a camera that already did it.
+
+The alternative is not to process on the box at all — **store raw, develop on the laptop**. At
+16.6 MB per 16-bit frame a 12 h run at 5 s is ~143 GB, which one 256 GB card holds. For sunsets that
+is arguably the better photographic answer anyway, since it keeps full grading latitude, and it is
+where the camera's 256 MB DDR3 buffer earns its place: it decouples sensor readout from a host busy
+writing to SD.
+
+#### The part that changes the whole argument
+
+**The only reason this project ever needed a Raspberry Pi specifically was its tuned ISP.** An
+astronomy camera needs no tuning at all, because it hands over linear data to be graded later. So
+this path **removes the Raspberry Pi dependency entirely** — any reasonably capable Linux SBC will
+do, and unlike the Zero 2 W those are in stock.
+
+That is a real resolution of the blocker that created this document. The price is a bigger, heavier,
+costlier camera, a mandatory SBC host, more power, and colour that must be earned in post rather
+than bought in firmware.
+
+**Not a recommendation yet.** Nothing here is measured, the power figures are vendor maxima, and the
+62 mm barrel has not been fitted to an enclosure even on paper. If this path is taken it earns its
+own document alongside [PI-BUILD.md](PI-BUILD.md) and this one.
 
 ### 2. `P_cam` and `t_on` — decides whether it is competitive
 
@@ -1396,6 +1520,7 @@ Prove them by running a session to empty.
 |---|---|
 | **Exposure control unusable** | Test 1, before any other spending. No workaround if it fails |
 | **Shutter caps at 14.4 ms on the B0587** | Measured. ~4.9 stops total against a sunset's ~10. Not a bug: Arducam sell long exposure as a separate tier (B0588, but 2 MP). Parked pending a real sunset test |
+| **Vendor-tuned ISP implies vendor-owned registers** | Structural, not a defect of this module: the tuning is only sold inside streaming-oriented products. Escapes are CSI+libcamera, or giving up the ISP for an astro/machine-vision camera |
 | **Too sensitive for daylight** | Measured: 2.3 stops over at minimum exposure, 48 % blown, fixed aperture so nothing left to turn down. ND on the 37 mm window; ND32-ND64 to also clear the steppy bottom of the range |
 | **ND helps one end and hurts the other** | A fixed ND cannot come off mid-session, so sunset-to-night either starts clipped or ends pinned. Pick per shoot; avoid variable ND, which bands across wide skies |
 | `P_cam` far above estimate | Test 2; tier C degrades gracefully since energy scales with interval |
