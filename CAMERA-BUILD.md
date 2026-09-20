@@ -164,13 +164,86 @@ That makes the power measurement the single most valuable unknown on this path.
 
 ---
 
+## Battery sizing — an estimate, and how to replace it with a measurement
+
+**These are estimates with roughly ±50 % on the dominant term.** Nobody publishes the standing power
+of a camera in timelapse mode, and the CIPA shot rating does not model it — CIPA assumes flash,
+image review, zooming and a power cycle every ten frames, none of which a timelapse does, while
+ignoring the thing that actually drains the battery: **the camera sitting awake between frames.**
+
+### The model
+
+Same shape as everywhere else in this project — a static floor plus a per-frame cost:
+
+    E_total = P_idle × T  +  E_frame × N
+
+Working backwards from the widely reported figure that a DSLR yields roughly 1,500 timelapse frames
+from an 8 Wh battery gives **P_idle ≈ 1.6 W and E_frame ≈ 3 J** for an APS-C body. A compact should
+be gentler; call it **1.2 W and 2 J**.
+
+Sanity check in the other direction: 7 Wh of camera battery at 1.6 W is **about 4 hours**, which
+matches the common experience that one battery gets you a few hours of timelapse and no more.
+
+### What that means at a 5 s interval
+
+| Session | Compact (G1X II class) | APS-C (EOS M class) |
+|---|---|---|
+| 6 h — 4,320 frames | 9.6 Wh | 13.2 Wh |
+| 8 h — 5,760 frames | 12.8 Wh | 17.6 Wh |
+| 12 h — 8,640 frames | 19.2 Wh | 26.4 Wh |
+
+Through a converter at 88 % and with the usual 25 % derate for cold, ageing and not running flat,
+in 3500 mAh 18650s at 12.6 Wh each:
+
+| Session | Compact | APS-C |
+|---|---|---|
+| 6 h | **2 cells** | **2 cells** |
+| 8 h | **2 cells** | **2–3 cells** |
+| 12 h | **3 cells** | **3–4 cells** |
+
+**Two cells covers a sunset comfortably, three covers a long session.** Note the interval barely
+matters below ~10 s: at 5 s the static floor is 70–75 % of the total, so halving the interval to 2 s
+adds only about a quarter to the budget.
+
+### Against the other builds
+
+| Build | Shooting power | 12 h |
+|---|---|---|
+| [Pi build](PI-BUILD.md) | ~1.1 W | 2 cells |
+| [UVC build](UVC-BUILD.md), tier C | ~1 W | 2 cells |
+| **This build, compact** | **~1.6 W avg** | **3 cells** |
+| **This build, APS-C** | **~2.2 W avg** | **3–4 cells** |
+| [Astro build](ASTRO-BUILD.md) | ~4.0–4.5 W | 6 cells |
+
+**It sits between the module builds and the Linux builds**, which is a good place to be given it
+brings a sensor three stops larger and deletes the entire software pipeline.
+
+### Would sleeping between frames help? At 5 s, barely
+
+Tempting, since CHDK and Magic Lantern can power down between shots on some bodies. But waking a
+camera costs energy and several seconds, and at a 5 s interval there is almost no idle left to
+reclaim — the saving arrives around **20–30 s intervals** and is large only beyond that. Worth
+configuring for long-interval sessions; not worth designing the build around.
+
+### The free experiment that replaces all of this
+
+Two unknowns, so two runs, and **no hardware at all**:
+
+1. Charge a battery fully, run the camera's own intervalometer at **5 s** until it dies, record
+   frames and elapsed time.
+2. Repeat at **30 s**.
+
+Two equations, two unknowns, and `P_idle` and `E_frame` fall out directly — for the actual body, in
+the actual mode, which is worth more than any estimate above. It costs two evenings and a battery
+cycle, and it can be done before buying anything else.
+
 ## Hardware around the camera
 
 | Part | Role | ≈ EUR |
 |---|---|---|
 | **DC coupler (dummy battery)** — Canon DR-E6NH | replaces LP-E6NH, takes external 7.4–8.4 V | 40 |
 | Boost/buck to 8.4 V | from the 18650 pack | 15 |
-| 4 × 18650 + sled | ~52 Wh, ~14 h at 3 W | 40 |
+| 2–4 × 18650 + sled | see the sizing section — 2 cells for a sunset, 3–4 for 12 h | 20–40 |
 | **ESP32-P4** (level 1) *or* optocoupler + 2.5 mm remote lead (level 0) | control | 15 / 5 |
 | DS3231 + P-FET latch, or Witty Pi | scheduled wake, switched rail | 15 |
 | **Large flat optical window** | 77 mm+ filter or a flat port | 40 |
