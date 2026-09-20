@@ -187,6 +187,75 @@ can be added later without changing anything else.
 
 ---
 
+## Variant C — the IMX294, the biggest pixels available
+
+The sensor with the most light-gathering per pixel found anywhere in this project, and the only one
+that attacks the *in-frame* dynamic range problem rather than just the exposure range.
+
+| | ZWO ASI294MC (uncooled) | ZWO ASI585MC | Arducam B0587 (owned) |
+|---|---|---|---|
+| Sensor | **IMX294CJK, 4/3″** | IMX585, 1/1.2″ | IMX678, 1/1.8″ |
+| Diagonal | **23.2 mm** | 12.8 mm | 8.9 mm |
+| Resolution | 11.3 MP, **4144×2822** | 8.3 MP, 3840×2160 | 8.3 MP, 3840×2160 |
+| Pixel | **4.63 µm** | 2.9 µm | 2.0 µm |
+| Full well | **63,700 e⁻** | 40,000 e⁻ | unpublished |
+| Read noise | 1.2 e⁻ | 0.8 e⁻ | unpublished |
+| Peak QE | >75 % | 91 % | unpublished |
+| Single-frame DR | **~15.7 stops** | ~15.6 stops | 8-bit output, so ≤8 |
+| **Exposure range** | **32 µs – 30 min ≈ 25.7 stops** | 32 µs – 2000 s | **4.91 stops** |
+| ADC | 14-bit | 12-bit | 8-bit out of the ISP |
+| Interface | USB 3.0, USB 2.0 compatible | USB 3.0 | USB 2.0 |
+| Price | **Skr 10,800**, 3–5 weeks | Skr 6,350 | ~Skr 1,000 |
+
+### What it actually buys
+
+**Per pixel, +1.35 stops over the IMX585** and +2.4 over the IMX678, on area alone. The IMX585 claws
+0.28 back on quantum efficiency, so call it **+1.1 stops per pixel** against the IMX585.
+
+**Per frame the gap is larger.** At the same f-number and field of view, total light scales with
+sensor area: (23.2/12.8)² = 3.3×, or **+1.7 stops** over the IMX585 and **+2.7** over the IMX678.
+
+**And a 63,700 e⁻ full well** — 1.6× the IMX585's — is highlight headroom, which is the currency a
+sunset spends.
+
+**The genuinely novel part is the Quad Bayer HDR.** The IMX294 is natively ~47 MP at 2.315 µm, binned
+2×2 to give the 4.63 µm output. In HDR mode it instead uses **two pixels of each quad for a short
+exposure and two for a long one, with no temporal delay between them.** That attacks the one failure
+mode longer exposure cannot touch: a bright sky and a dark foreground *within a single frame*, which
+is precisely what a sunset is.
+
+It is also not a surveillance-only part. The **GH5S, Blackmagic Pocket 4K and Z CAM E2** carry it, so
+the "built for video" concern cuts both ways — it is a sensor people deliberately chose for pictures.
+
+### Three things that make it hard
+
+**The lens is the real cost, and it is unavoidable physics.** A 23.2 mm diagonal is larger than
+C-mount is specified to cover (1″ = 16 mm), so **an ordinary C-mount lens will vignette badly**. For
+roughly 90° diagonal the focal length wanted is ~11.6 mm, which means a Micro Four Thirds lens on a
+T2 adapter — a used Samyang 12 mm f/2 at ~€250, an Olympus 12 mm f/2 or Laowa 7.5 mm at ~€500 — or a
+large-format machine-vision lens at similar money. **The big sensor's advantage is exactly paid for
+in glass**, and the box grows to match. Cheap M42 SLR lenses cover the format easily but are not wide
+enough without spending.
+
+**The HDR mode is probably not reachable.** Astronomy vendors configure these sensors for linear
+photometry, because that is what their market wants; a staggered-HDR mode destroys it. So the most
+interesting feature is likely absent from the only bodies that can be bought. **Verify before paying
+for it** — if the ZWO SDK does not expose it, that argument disappears entirely.
+
+**And it costs Skr 10,800 against Skr 6,350** for the IMX585 — 70 % more for ~1.1 stops per pixel —
+before a €250–500 lens. Against the Skr 1,000 already spent, a complete IMX294 system lands near
+**Skr 14,000**, which is a different kind of project.
+
+### Where it sits
+
+If the goal is the best possible sunset image and the budget stretches, this is the best sensor
+available and the HDR mode — if reachable — is the only thing in this document that addresses
+in-frame dynamic range. If the goal is a box that works, the IMX585 gives most of the light for
+60 % of the money and a far cheaper lens, and the ToupTek C2CMOS keeps the whole low-power
+architecture for less again.
+
+---
+
 ## Variant B — the Basler dart, and the box it makes possible
 
 Everything above assumes an astronomy camera, and pays for it in bulk. A **board-level
