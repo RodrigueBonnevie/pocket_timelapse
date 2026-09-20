@@ -10,14 +10,15 @@ Construction has not started; the architecture is back under review.
 
 ## Documents
 
-**Three architectures**, at different stages of validation, plus two background papers and the
-Phase 0 results.
+**Three architectures**, at different stages of validation, plus the camera survey, two background
+papers and the Phase 0 results.
 
 | | |
 |---|---|
 | **[PI-BUILD.md](PI-BUILD.md)** | **Architecture 1 — Raspberry Pi.** The more settled of the two. Every choice, why it was made, what was rejected, and the measurements that still need taking |
 | **[UVC-BUILD.md](UVC-BUILD.md)** | **Architecture 2 — UVC camera.** Buys the ISP tuning in the camera, so the host needn't be a Pi. Sources today, better sensor, scales to multi-week runs — with four measurements standing between it and a trusted BOM |
 | **[ASTRO-BUILD.md](ASTRO-BUILD.md)** | **Architecture 3 — give the ISP up on purpose.** Own the exposure register instead of buying tuning: an astronomy camera (~26 stops against 4.91) or a board-level machine-vision camera. Removes the Raspberry Pi dependency entirely. Costs twice the power and colour earned in post. An exploration, not a recommendation |
+| **[CAMERAS.md](CAMERAS.md)** | **Every camera considered, in one table.** Thirty-odd modules across ten sensors, grouped by whether they keep the low-power MCU host; sensors ranked by light per pixel; and a status column saying which claims are measured, which are vendor-stated and which are guesses |
 | **[phase0/README.md](phase0/README.md)** | **The measurements**, the tooling that took them, and the traps found along the way |
 | **[IMAGE-PIPELINE.md](IMAGE-PIPELINE.md)** | Background: what happens between photons and a JPEG, and why the camera dictates the board |
 | **[SENSORS.md](SENSORS.md)** | Background: the IMX range, why these sensors carry no ISP, what ISP *tuning* is and why it — not hardware — is the real constraint, and why a small sensor on a tripod is enough |
@@ -52,10 +53,11 @@ the deeper cause is the architecture's own first decision: *a camera whose ISP s
 is a camera whose sensor registers somebody else owns.* Tuned ISPs are sold inside webcams and
 surveillance cameras, and those stream.
 
-**No vendor publishes an exposure range**, which is exactly how this got past selection. The one
-specification that decides whether the build works is not a published specification. The buying
-heuristic that does work: vendors advertise long exposure loudly when a product has it, so silence
-is evidence of absence.
+**No vendor publishes an exposure range**, which is exactly how this got past selection. Across
+thirty-odd modules, ten sensors and a dozen vendors, **two manufacturers state the figure** — both
+selling into microscopy. The one specification that decides whether the build works is not a
+published specification. See [CAMERAS.md](CAMERAS.md) for the full survey and the buying heuristics
+that did survive contact.
 
 ## Three things that shaped everything else
 
