@@ -261,6 +261,30 @@ complexity bought for information the web page presents better.
 | amber | battery low |
 | red | error, card full |
 
+### Option: configure over USB instead of WiFi
+
+The AP is settled but not the only way, and the alternative is worth recording because it deletes
+parts rather than adding them.
+
+**The box presents itself to a phone as a USB network device.** Linux gadget mode over the host's
+OTG port (CDC-NCM) makes the phone see a wired network; its browser opens the same page the AP would
+have served. `phase0/focus_preview.py` already is that page — a web server streaming live MJPEG with
+a focus readout — so the software exists.
+
+Three things make it attractive:
+
+- **It costs no new hole in the enclosure.** The design forbids external ports because every hole
+  leaks — but **the box is already opened to swap cells**, so an *internal* USB-C socket is free.
+  Open it, plug in the phone, frame, focus, unplug, close.
+- **It deletes a chip on tier C.** That tier is "ESP32-P4 **plus an ESP32-C6 for WiFi**", and the
+  C6's only job is serving this page. Over USB it disappears; the P4 has USB OTG and ESP-IDF
+  supports TinyUSB NCM.
+- No joining an AP, no captive-portal handling, and it works where WiFi is congested or unwelcome.
+
+**The catch is iOS.** USB-C iPhones (15 and later) speak CDC-NCM; Lightning ones do not reliably.
+The AP was chosen precisely because it behaves identically on both platforms, so this either narrows
+which phone can configure the box, or is built as the fast path with the AP kept as fallback.
+
 ---
 
 ## Bill of materials
@@ -1263,6 +1287,10 @@ No range. No minimum, no maximum. That is category-wide, and it is precisely how
 ceiling got past selection: **the one specification that decides whether this build works is not a
 published specification.** It can only be measured, which is what `phase0/` is for.
 
+**And the category matters more than the vendor.** See "The category that actually does this" below:
+cameras sold for photography rather than streaming *do* publish exposure ranges, because it is the
+feature they compete on.
+
 **The heuristic that does work: absence of the claim is evidence of absence.** Arducam advertise long
 exposure loudly where a product has it — the B0588 page states "Long Exposure Supported", up to
 12,935,800 µs ≈ 12.9 s. The B0587 page is silent on the subject. Searching the category that way,
@@ -1319,6 +1347,70 @@ This is what the exercise produced, and it would have prevented the purchase tha
 
 Ask e-con pre-sales, and ask Arducam the VMAX question about the B0587. Two emails, no money, and
 the answers decide the architecture.
+
+#### The category that actually does this: microscopy cameras
+
+The survey above looked at cameras sold for *seeing*. The question worth asking is which USB cameras
+are sold for *photographing*, and there is a clear answer: **microscopy cameras**. Microscopy is a
+stills discipline — dark and fluorescent samples need long integration — so long exposure is a
+headline feature rather than an oversight.
+
+**ToupTek's C2CMOS series proves the combination is not a contradiction:**
+
+| | Arducam B0587 (owned) | **ToupTek C2CMOS08300KPA** |
+|---|---|---|
+| Interface | UVC, plug-and-play | **UVC, plug-and-play** |
+| Onboard ISP | tuned, in camera | **hardware ISP — demosaic, AE/AGC/AWB, colour correction** |
+| Output | MJPEG | **MJPEG** |
+| Resolution | 3840×2160 @ 25 fps | 3840×2160 **@ 30 fps**, over USB 2.0 |
+| **Exposure range** | **4.91 stops, measured** | **0.1–2000 ms published ≈ 14.3 stops** |
+| Mount | M12 | C-mount, 29×29×30 mm |
+| Software | none needed | none needed; free SDK and Linux support exist |
+
+So **"UVC, with a tuned ISP, and a real exposure range" exists.** Arducam simply did not build it.
+That is worth knowing, because it means the architecture of this document was never the problem.
+
+**The catch is the sensor, and it is a bad one.** The 8.3 MP model uses **IMX274, 1/2.5″, 1.62 µm** —
+**0.61 stops worse per pixel than the IMX678 already owned**, and an older non-STARVIS 4K part with
+mediocre low light. The rest of the series is worse still for this purpose: IMX577, AR0521, IMX335,
+IMX307, none of them a STARVIS 2, and the only STARVIS-family part is 5 MP rather than 4K.
+
+The sibling series has the right sensor and loses the plug-and-play: **ToupTek E10ISPM08300KPA** is
+**IMX585** — the same sensor as the ZWO — at 2.9 µm with an onboard **12-bit hardware ISP**, HCG/LCG
+dual conversion gain, and an exposure range of **0.1 ms – 15 s (≈17.2 stops)**. But it needs the
+vendor SDK rather than UVC, and it is USB 3.2.
+
+**So the ideal part — 4K, STARVIS 2, tuned ISP, long exposure, UVC — does not appear to exist off
+the shelf.** Every piece of it does, and ToupTek build all of them. That makes them the vendor most
+worth asking, and the request is now precisely specifiable rather than vague.
+
+#### Vendors with an open platform
+
+Three, in descending order of how relevant they are to the camera already owned.
+
+**Kurokesu** are the standout, and uncomfortably close to home. They build Sonix-based UVC cameras —
+**the same chipset and the same extension-unit GUID found in the B0587**. Their
+[`C1_SONIX_Test_AP`](https://github.com/Kurokesu/C1_SONIX_Test_AP) is open source and is the file
+this project read to work out the B0587's XU protocol in the first place. They also state they were
+given a firmware configuration tool by Sonix exposing hidden parameters — denoise, bayer filter,
+edge enhancement, **resolution table**, lens shading, dealiasing — and their wiki documents a
+firmware update tool for "C1 and C2 family (Sonix chipset based)" cameras over USB.
+
+That is the closest thing to a free tuning platform in this market, and it raises the obvious
+question of whether it would talk to an Arducam. **Three reasons not to try yet:** the Sonix tool
+may not be redistributable, flashing another vendor's firmware tool onto this camera is a genuine
+bricking risk, and nothing published says exposure limits are among the parameters it exposes. Worth
+an email to Kurokesu before anything else — they are a small outfit and unusually open.
+
+**The Imaging Source** publish [`tiscamera`](https://github.com/TheImagingSource/tiscamera) under
+Apache 2.0 — the entire Linux stack, openly. Their UVC cameras are driven through extension units
+described in **JSON files** that map device behaviour onto V4L2 properties, including
+`Exposure Time (us)`. Genuinely open, and a good model for how a vendor should do this. Their range,
+however, is mostly Pregius and older sensors; no 4K STARVIS part was found.
+
+**Raspberry Pi** remain the only vendor shipping an open ISP *tuning* tool rather than merely open
+control — `ctt`, the camera tuning tool. That is the original reason [PI-BUILD.md](PI-BUILD.md)
+exists, and it is still true.
 
 #### Verdict — do not replace on paper
 

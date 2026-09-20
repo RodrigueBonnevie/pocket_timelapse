@@ -204,6 +204,23 @@ settings page (interval, duration, start time, exposure caps, live preview frame
 Pi writes the wake alarm and halts. Works identically on iOS and Android, which BLE-from-a-web-
 page does not (**iOS has no Web Bluetooth**).
 
+### Option: configure over USB instead of WiFi
+
+Recorded because it deletes parts rather than adding them, and applies to all three builds.
+
+The Pi presents itself to a phone as a **USB network device** — gadget mode over the OTG port
+(CDC-NCM) — so the phone sees a wired network and its browser opens the same settings page the AP
+would have served. **It costs no new hole**, because the box is already opened to swap cells, so an
+*internal* USB-C socket is free. No AP to join, no captive portal, and it works where WiFi is
+congested.
+
+**The catch is iOS**: USB-C iPhones (15 and later) speak CDC-NCM, Lightning ones do not reliably.
+The AP was chosen precisely because it behaves identically on both, so this is either a narrowing of
+which phone works, or the fast path with the AP kept as fallback.
+
+See [UVC-BUILD.md](UVC-BUILD.md) for the same note in the sibling build, where it also removes a
+whole companion radio from the MCU tier.
+
 ## Decision 4 — no display in the box
 
 A display sealed inside an opaque box needs a **second window** to be useful, and every window
