@@ -5,6 +5,10 @@ after Phase 0 established that the module path's problem is exposure range rathe
 
 The premise: **stop trying to find a camera module that behaves like a camera, and use a camera.**
 
+**Not the good camera.** An R7 left in a wood is a bad trade, and the R-line is poorly suited anyway.
+See *The cheap-body shortlist* below — the answer is an old body running CHDK or Magic Lantern, where
+the MCU does nothing but switch the power.
+
 ---
 
 ## Why it looks good on the numbers
@@ -67,6 +71,78 @@ deflicker and the existing `frames.csv` discipline mitigate it, and modern meter
 **Level 1 is the interesting one**, and it is what the project's MCU preference points at.
 
 ---
+
+## The cheap-body shortlist — and how far the architecture collapses
+
+Leaving an R7 on a hillside is a bad trade, and the R-line is the wrong tool anyway: high power, no
+on-camera scripting, and quirky `gphoto2` support. The right answer is an old body that already does
+the work on board.
+
+**Because once CHDK or Magic Lantern is running, the MCU stops needing to set settings or trigger at
+all.** Its job reduces to *switching the rail on at the scheduled time and off again hours later* —
+which is exactly the DS3231 + P-FET latch already designed in [PI-BUILD.md](PI-BUILD.md), at
+microamps. No USB host, no PTP, no V4L2, no image handling, no storage code, no `ramp.py`.
+
+**This is the simplest architecture in this repository by a wide margin.**
+
+### The two on-camera firmwares
+
+**CHDK** (Canon PowerShot) runs Lua/uBASIC scripts on the camera: intervalometer, exposure ramping,
+RAW, full manual. It also has the neatest control channel found anywhere in this project — **apply
+3–5 V to the USB power pin and the camera acts**, with `get_usb_power` returning the pulse length to
+about 10 ms, so **pulse width encodes commands**. One GPIO, one transistor, no protocol stack, no USB
+host peripheral. An ESP32-C3 would do.
+
+**Magic Lantern** (Canon DSLRs and EOS M) has a built-in intervalometer and **bulb ramping that
+"adjusts shutter and ISO automatically by analyzing image brightness of previous shots"** — which is
+`ramp.py`, already written and debugged by other people, running on the camera.
+
+### Candidate bodies
+
+Sensor area against the IMX678's 33.6 mm², at equal field of view and f-number:
+
+| Body | Sensor | Area | vs IMX678 | Resolution | Firmware | Used price |
+|---|---|---|---|---|---|---|
+| **PowerShot G1 X Mark II** | **1.5″**, 18.7×14.0 | **262 mm²** | **+2.96 st** | 4352×3264 | **CHDK** (120a) | ~€250 |
+| PowerShot G7 X | 1″, 13.2×8.8 | 116 mm² | +1.79 st | 5472×3648 | **CHDK** | ~€200 |
+| PowerShot G16 | 1/1.7″ | 41.5 mm² | +0.31 st | 4000×3000 | **CHDK** (DIGIC 6) | ~€120 |
+| **Canon EOS M** | APS-C | **332 mm²** | **+3.31 st** | 5184×3456 | **Magic Lantern** | ~€130 |
+| Canon EOS 100D / 650D | APS-C | 332 mm² | +3.31 st | 5184×3456 | **Magic Lantern** | ~€130 |
+
+All of them clear 4K after a 16:9 crop, with room spare.
+
+### The two that matter
+
+**PowerShot G1 X Mark II** is the interesting one. A 1.5″ sensor is **+3 stops over the module already
+owned** — as much as APS-C — in a compact body with the lens built in. That last point is worth more
+than it sounds: **no lens to buy, and a small front element means a small optical window**, so the
+37 mm filter from the original enclosure plan still works rather than a 77 mm plate. The lens also
+retracts, protecting itself. CHDK's USB-pulse channel makes the electronics trivial.
+
+**Canon EOS M** is the cheapest route to APS-C, at around €130. Mirrorless, so no mirror slap and
+lower power than a DSLR, tiny, and Magic Lantern does the ramping. Against it: an interchangeable
+lens means buying glass and a much larger window, and it has a **mechanical shutter**.
+
+### Shutter wear is the deciding constraint for the DSLRs
+
+One 12 h session at 5 s is **8,640 actuations**. Against a 100,000-rated shutter that is **twelve
+sessions**. This is a consumable, and it is why the compacts win: many use a leaf or electronic
+shutter with no comparable wear. **Check the shutter type before buying any body for this.**
+
+### Three gotchas that will otherwise waste a weekend
+
+**Buy a genuine Canon DC coupler, not an aftermarket dummy battery.** The distinction matters exactly
+here: an original coupler identifies itself as a coupler rather than impersonating a battery, and
+cameras that see a coupler can be **powered on and off freely** — which is the entire premise of an
+MCU-switched rail. Aftermarket units that masquerade as batteries can behave differently.
+
+**Verify the camera boots when the rail is applied**, with its physical switch left on, and that
+CHDK's autostart script or ML's intervalometer starts unattended after a cold power-up. If it needs a
+button press, the whole design fails and it fails silently at 3 a.m.
+
+**Decide what happens to a retracting lens on power loss.** Cutting the rail mid-session may leave
+the lens extended. Inside a sealed box that is harmless — and arguably better, since it avoids a
+retract/extend cycle per session — but confirm the camera does not sulk on the next boot.
 
 ## The catch that decides the power budget
 
