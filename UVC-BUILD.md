@@ -1431,8 +1431,9 @@ costlier camera, a mandatory SBC host, more power, and colour that must be earne
 than bought in firmware.
 
 **Not a recommendation yet.** Nothing here is measured, the power figures are vendor maxima, and the
-62 mm barrel has not been fitted to an enclosure even on paper. If this path is taken it earns its
-own document alongside [PI-BUILD.md](PI-BUILD.md) and this one.
+62 mm barrel has not been fitted to an enclosure even on paper. It now has its own document:
+**[ASTRO-BUILD.md](ASTRO-BUILD.md)**, which carries the BOM, the power budget, the enclosure
+problem, and the reason an MCU host is impossible on this path.
 
 ### 2. `P_cam` and `t_on` — decides whether it is competitive
 
