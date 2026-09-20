@@ -1491,6 +1491,81 @@ the price.
 
 Everything else is dominated by one of those two.
 
+#### The MCU path is the preferred one — and this is its shortlist (2026-09-21)
+
+The direction is now set: **tier C, the MCU host.** Two reasons, and both hold up.
+
+**Energy.** The MCU deletes the host's continuous floor, which is the single largest term in the
+budget. Using the lowest credible camera figure found (0.73–1.07 W for the e-con part):
+
+| At a 5 s interval | Host | Camera | Total |
+|---|---|---|---|
+| Tier B, SBC | ~2 W continuous | ~1 W continuous | **~3 W** |
+| Tier C, camera left streaming | ~0 | ~1 W continuous | **~1 W** |
+| Tier C, camera power-cycled, `t_on` 2.5 s | ~0 | ~1 W at 50 % duty | **~0.5 W** |
+
+Even the pessimistic case is **three times better**, because deleting a 2 W host is worth more than
+any camera choice. In cells, for 12 h: **two 18650s against six.** That is the difference between the
+original pocketable box and a brick.
+
+Note the mechanism, because it constrains camera choice: per *Static versus dynamic* above, these
+cameras have a **substantial static floor** and their draw barely scales with frame rate. So the
+lever is `t_on` — how much of each interval the camera must be powered — not frame rate. `P_cam` and
+`t_on` remain **test 2 and test 3, still unmeasured**, so the factors above are estimates. The
+direction is certain; the magnitude is not.
+
+**Output handling.** MJPEG straight from camera to SD card needs no processing whatsoever. The host
+triggers, receives compressed bytes, writes them, sleeps.
+
+#### Which is why the onboard ISP is architectural, not a convenience
+
+Measured MJPEG from the B0587 on an outdoor scene: **~620 kB per 4K frame**. A 16-bit raw frame of
+the same sensor is **16.6 MB — twenty-seven times larger.**
+
+| 12 h at 5 s, 8,640 frames | MJPEG | Raw 16-bit |
+|---|---|---|
+| Storage | **5.4 GB** | **143 GB** |
+| Card | 32 GB, ~€8 | 256 GB, ~€25 |
+
+But the card is the *smallest* part of the cost, and framing it as a storage question understates
+the problem. **Raw mandates a Linux host**: an MCU can buffer one or two megabytes, but it cannot
+demosaic 8.3 megapixels, and there is no ISP to do it for them. So raw forces Linux, Linux forces a
+~2 W floor, that floor forces six cells instead of two, and the cells force a bigger box. The €17 of
+SD card is a rounding error against that chain.
+
+**So the onboard ISP is not a nicety that saves post-processing. It is the component that makes the
+low-power architecture possible at all.** Any camera without one is a tier B camera by definition.
+
+#### The three candidates that keep tier C alive
+
+Requirements: UVC, MJPEG out, onboard ISP, **USB 2.0**, 4K.
+
+| | **Arducam B0587** (owned) | **ToupTek C2CMOS08300KPA** | **e-con e-CAM82_USB** | Goobuy UCM-678-8mp-2 |
+|---|---|---|---|---|
+| Sensor | IMX678 1/1.8″ **2.0 µm** | IMX274 1/2.5″ 1.62 µm | IMX415 1/2.8″ **1.45 µm** | IMX678 1/1.8″ 2.0 µm |
+| 4K rate | 25 fps | 30 fps | 30 fps | 30 fps |
+| **Exposure range** | **4.91 stops, measured — fails** | **14.3 stops, published** | **not published** | **not published** |
+| Manual exposure | yes | yes | **yes, over UVC** | page mentions auto only |
+| Power | unmeasured | unstated | **0.73–1.07 W** | ~0.95 W |
+| Mount / size | M12 | C-mount, 29×29×30 mm | **M12, 30×30×25 mm** | 38×38 mm dual board |
+| Vendor | publishes little | publishes ranges | **publishes ranges on some parts** | Shenzhen Novel Electronics |
+| Price | ~Skr 1,000 | no quote found | not listed | not listed |
+
+**e-con's e-CAM82_USB is the most interesting of these.** It is explicitly a *USB 2.0* 4K camera —
+unusual, and exactly what tier C needs — with a tuned ISP, MJPEG, M12, manual exposure over UVC, and
+the **lowest power figure of any camera in this document**. Its IMX415 gathers ~0.9 stops less than
+the IMX678 already owned, which by the exposure arithmetic above matters far less than range.
+
+**ToupTek's C2CMOS is the only one with a published range**, and 14.3 stops would settle the whole
+problem. Its IMX274 is the weakest sensor here and it is C-mount rather than M12.
+
+**Goobuy's module should be treated as a likely repeat of the B0587.** Same sensor, same class of
+part, and a product page that mentions only *auto* exposure — which, on the evidence of this
+project, is how a camera with a useless manual range presents itself.
+
+**Neither of the two live candidates publishes what matters.** Both vendors answer technical
+pre-sales questions, and the qualifying question is already written above.
+
 #### Vendors with an open platform
 
 Three, in descending order of how relevant they are to the camera already owned.
