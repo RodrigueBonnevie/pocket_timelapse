@@ -1591,13 +1591,51 @@ blank almost everywhere** — that is the finding, not an omission in the resear
 | Arducam | B0477 | IMX283 | 3.0 | **YUY2 only** | unpublished |
 | IDS | UV-36L0XC | AR1335 | 3.0 | MJPEG 4200×3120 | absent from the technical manual |
 
+##### Completing the sweep: the sensors the STARVIS filter hid
+
+The sweep above filtered on STARVIS, which was this document's assumption rather than a requirement.
+**4K is the requirement.** Removing the filter adds the following.
+
+**Sony parts missed, none of which changes the conclusion:**
+
+| Sensor | Format | Pixel | Verdict |
+|---|---|---|---|
+| **IMX715** | 1/2.8″ | **1.45 µm** | STARVIS 2 with improved NIR, but the same format and pitch as the IMX415 — e-con's own comparison confirms both at "1.45 µm × 1.45 µm, Type 1/2.8". No gain |
+| IMX485 | 1/1.2″ | 2.9 µm | STARVIS 1 sibling of the IMX585. e-con list it, but in MIPI modules |
+| **IMX294** | **4/3″, 21.63 mm** | **4.63 µm** | **+2.4 stops over the IMX678** — the largest pixels found anywhere in this project, and launched by Sony *for 4K surveillance*. Appears only in astronomy bodies. No UVC module found |
+| IMX533 | 1″ square | 3.76 µm | **Fails 4K** — 3008×3008, so 3008 px wide against the 3840 required |
+| IMX183 | 1″ | 2.4 µm | Effectively the IMX283 already listed |
+
+**And the part the filter genuinely hid — the non-Sony 4K sensors:**
+
+| Sensor | Format | Pixel | Where it appears |
+|---|---|---|---|
+| **onsemi AR0821** | **1/1.7″** | **2.1 µm** | **e-con See3CAM_CU81**, Vadzo AR0821 4K HDR USB 3.0 |
+| onsemi AR0830 | 4K | — | e-con See3CAM_CU84, notable for **wake-on-motion** |
+| **OmniVision OS08A10** | 1/1.8″ | 2.0 µm | **Camemake CM-USB2-02**, dothecamera, Shenzhen CM Technology — many cheap **USB 2.0** UVC modules |
+| onsemi AR1335 | 1/3.2″ | 1.1 µm | IDS uEye XC |
+
+**The AR0821 deserves a place on the shortlist.** Its 2.1 µm pixels are marginally *larger* than the
+IMX678 already owned, on a larger 1/1.7″ format, and **e-con's See3CAM_CU81 is UVC compliant with a
+built-in ISP** — USB 3.1 Gen 1, but described as *"backward compatible with USB 2.0 host ports"*,
+which needs verifying before tier C can be assumed.
+
+Its real attraction is **HDR**. The one thing long exposure cannot fix is per-frame dynamic range,
+and that is exactly the problem a sunset presents: bright sky over dark ground in a single frame. A
+sensor with a staggered-HDR mode addresses the failure mode the exposure argument leaves open. The
+OS08A10 has a two-exposure staggered HDR mode for the same reason.
+
+**None of them publishes an exposure range either.** Twenty-plus modules, nine sensors, three sensor
+vendors, and the count of manufacturers stating the figure remains two — both selling into
+microscopy.
+
 ##### Three patterns fall out
 
 **Arducam's C-mount USB 3.0 line is YUY2-only.** B0497, B0498 and B0477 all drop MJPEG, per their own
 datasheets. Whatever the sensor, they are tier B cameras that put the compression back on the host.
 
-**The gap is real and it is specific.** Nobody appears to sell *a UVC module with a 4K STARVIS 2
-sensor aimed at photography*. The surveillance vendors have the newest sensors and cap the shutter at
+**The gap is real and it is specific.** Nobody appears to sell *a 4K UVC module aimed at
+photography* — with or without a STARVIS sensor. The surveillance vendors have the newest sensors and cap the shutter at
 one frame; the microscopy vendors publish long exposure but put their good sensors behind an SDK and
 leave an older part (IMX274) on the UVC line. The intersection is empty because no market has asked
 for it.
