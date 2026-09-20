@@ -1546,6 +1546,76 @@ SD card is a rounding error against that chain.
 **So the onboard ISP is not a nicety that saves post-processing. It is the component that makes the
 low-power architecture possible at all.** Any camera without one is a tier B camera by definition.
 
+#### Every UVC module found carrying an acceptable sensor (2026-09-21)
+
+A systematic sweep, sensor by sensor, of UVC modules rather than of vendors. **Exposure range is
+blank almost everywhere** — that is the finding, not an omission in the research.
+
+**IMX678** — 1/1.8″, 2.0 µm, STARVIS 2. The sensor already owned.
+
+| Vendor | Model | USB | Output | Exposure range | Note |
+|---|---|---|---|---|---|
+| Arducam | **B0587** | **2.0** | MJPEG + YUY2 | **4.91 stops, measured** | owned; fails |
+| Arducam | B0497 | 3.0 | **YUY2 only** | unpublished | no MJPEG, per datasheet |
+| Goobuy | UCM-678-8mp-2 | **2.0** | MJPEG + YUY2 | unpublished | 950 mW, 38×38 mm, page lists auto exposure only |
+| ELP | ELP-U3CAM4K60-KV100 | 3.0 | MJPEG 4K60 | unpublished | 100° lens |
+| ELP | ELP-USB4KCAM678U3-V100 | 3.0 + HDMI | MJPEG | unpublished | M12 |
+| SincereFirst | IMX678 4K60 USB3 | 3.0 | UVC | unpublished | Type-C |
+| DFRobot, HBVCAM | various IMX678 4K | 3.0 | MJPEG | unpublished | rebadged modules |
+
+**IMX585** — 1/1.2″, 2.9 µm, STARVIS 2. The best sensor found anywhere in this project.
+
+| Vendor | Model | USB | Output | Exposure range | Note |
+|---|---|---|---|---|---|
+| Arducam | B0498 | 3.0 | **YUY2 only** | unpublished | C-mount, F1.4–F16 iris |
+| HaiYusee | IMX585 USB3.0 | 3.0 | MJPG, H.264/265 | unpublished | |
+| Innomaker | CAM-IMX585-M | unverified | | unpublished | interface unconfirmed |
+| ToupTek | E10ISPM08300KPA | 3.2 | **SDK, not UVC** | **0.1 ms – 15 s** | Skr 11,300 |
+
+**IMX415** — 1/2.8″, 1.45 µm, STARVIS.
+
+| Vendor | Model | USB | Output | Exposure range | Note |
+|---|---|---|---|---|---|
+| **e-con** | **e-CAM82_USB** | **2.0** | MJPEG + YUY2 | unpublished | **0.73–1.07 W**, tuned ISP, M12, manual exposure over UVC |
+| Innomaker | IMX415 UVC | 3.0 | MJPEG | unpublished | 4K30 |
+| ELP | ELP-USB4K03-L36 | unverified | MJPEG + YUY2 | unpublished | |
+| Vadzo | Falcon-415CRS | 3.0 | | unpublished | |
+| VXB, Hotpet, generic | many | 2.0/3.0 | MJPEG | unpublished | webcam-derived |
+
+**IMX274** — 1/2.5″, 1.62 µm. **IMX334** — 1/1.8″, 2.0 µm. **IMX283** — 1″, 2.4 µm, the crop-room option.
+
+| Vendor | Model | Sensor | USB | Output | Exposure range |
+|---|---|---|---|---|---|
+| **ToupTek** | **C2CMOS08300KPA** | IMX274 | **2.0** | **MJPEG** | **0.1–2000 ms = 14.3 stops** |
+| Basler | daA3840-45uc | IMX334 | 3.0 | **USB3 Vision, not UVC** | unpublished |
+| Arducam | B0477 | IMX283 | 3.0 | **YUY2 only** | unpublished |
+| IDS | UV-36L0XC | AR1335 | 3.0 | MJPEG 4200×3120 | absent from the technical manual |
+
+##### Three patterns fall out
+
+**Arducam's C-mount USB 3.0 line is YUY2-only.** B0497, B0498 and B0477 all drop MJPEG, per their own
+datasheets. Whatever the sensor, they are tier B cameras that put the compression back on the host.
+
+**The gap is real and it is specific.** Nobody appears to sell *a UVC module with a 4K STARVIS 2
+sensor aimed at photography*. The surveillance vendors have the newest sensors and cap the shutter at
+one frame; the microscopy vendors publish long exposure but put their good sensors behind an SDK and
+leave an older part (IMX274) on the UVC line. The intersection is empty because no market has asked
+for it.
+
+**And the cap tracks the target market, not the sensor or the interface** — which is exactly the
+hypothesis that prompted this sweep, and the evidence supports it:
+
+| Camera | Market it is sold into | Exposure range |
+|---|---|---|
+| Arducam B0587 | surveillance, night vision | **14.4 ms** |
+| Arducam B0588 | *advertised for long exposure* | **12.9 s** |
+| ToupTek C2CMOS | microscopy | **2000 ms** |
+| ToupTek E10ISPM | microscopy | **15 s** |
+
+Same silicon families, same interfaces, ranges differing by three orders of magnitude. **So the
+right filter is the target market, not the sensor**, and the two candidates that survive it are the
+two already on the shortlist.
+
 #### Does the lesser-sensor argument revive machine vision? No
 
 The exposure arithmetic above — that a worse sensor with a far wider range wins — raises the
