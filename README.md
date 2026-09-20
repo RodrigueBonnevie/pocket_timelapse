@@ -17,7 +17,7 @@ Phase 0 results.
 |---|---|
 | **[PI-BUILD.md](PI-BUILD.md)** | **Architecture 1 — Raspberry Pi.** The more settled of the two. Every choice, why it was made, what was rejected, and the measurements that still need taking |
 | **[UVC-BUILD.md](UVC-BUILD.md)** | **Architecture 2 — UVC camera.** Buys the ISP tuning in the camera, so the host needn't be a Pi. Sources today, better sensor, scales to multi-week runs — with four measurements standing between it and a trusted BOM |
-| **[ASTRO-BUILD.md](ASTRO-BUILD.md)** | **Architecture 3 — astronomy camera.** Gives the in-camera ISP up deliberately to own the exposure register: ~26 stops instead of 4.91, and no Raspberry Pi dependency. Twice the power, four times the price, and not pocketable. An exploration, not a recommendation |
+| **[ASTRO-BUILD.md](ASTRO-BUILD.md)** | **Architecture 3 — give the ISP up on purpose.** Own the exposure register instead of buying tuning: an astronomy camera (~26 stops against 4.91) or a board-level machine-vision camera. Removes the Raspberry Pi dependency entirely. Costs twice the power and colour earned in post. An exploration, not a recommendation |
 | **[phase0/README.md](phase0/README.md)** | **The measurements**, the tooling that took them, and the traps found along the way |
 | **[IMAGE-PIPELINE.md](IMAGE-PIPELINE.md)** | Background: what happens between photons and a JPEG, and why the camera dictates the board |
 | **[SENSORS.md](SENSORS.md)** | Background: the IMX range, why these sensors carry no ISP, what ISP *tuning* is and why it — not hardware — is the real constraint, and why a small sensor on a tripod is enough |

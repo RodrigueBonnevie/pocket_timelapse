@@ -35,13 +35,13 @@ The brief is not set in stone, but it should be clear which parts this path push
 | ≥4K stills with crop room | **Met** — 3840×2160, and 12-bit rather than 8-bit JPEG |
 | Decent image quality | **Met, but earned in post** rather than out of the camera |
 | Weeks of idle standby | **Met** — same switched-rail approach as the other builds |
-| 6–12 h shooting | **Pressured** — roughly double the power, so 6 h is comfortable and 12 h is heavy |
+| 6–12 h shooting | **Pressured either way** — roughly double the power, because the host is half the budget. 8 h on four cells; 12 h needs six |
 | Field-configurable, no laptop | **Met** — WiFi AP, unchanged |
 | Scheduled / timer starts | **Met** — unchanged |
 | MCU-based control | **Lost.** Not negotiable — see Decision 3 |
 | Swappable camera module | **Met differently** — M42/C-mount, a much wider lens and body ecosystem |
 | SD card of stills, no video encode | **Met** — and arguably better, since raw frames keep grading latitude |
-| **Pocketable** | **This is the one that breaks.** See the enclosure section |
+| **Pocketable** | **Breaks with the ZWO** (62 mm barrel, ~160×120×90 mm box). **Survives with Variant B** — a 29 mm board keeps it near 140×90×60 mm |
 
 ---
 
@@ -81,7 +81,9 @@ rudimentary colour pipeline: white balance gains and a gamma curve, simply not a
 
 ## Decision 2 — the camera
 
-**Chosen for costing: ZWO ASI585MC (uncooled).** Player One's Uranus-C uses the same sensor and QHY
+**Chosen for costing: ZWO ASI585MC (uncooled).** A board-level machine-vision camera is the other
+way to buy the same architecture in a much smaller package — see *Variant B — the Basler dart*
+below, which is probably the stronger option and certainly the cheaper one. Player One's Uranus-C uses the same sensor and QHY
 are a third source; all three have free Linux SDKs with aarch64 builds and INDI support.
 
 | | ZWO ASI585MC | Arducam B0587 (owned) |
@@ -141,9 +143,14 @@ stops of exposure range it buys.
 ### Bandwidth is not a constraint, which widens the host choice
 
 A 16-bit 8.3 MP frame is 16.6 MB. At a 5 s interval that is **3.3 MB/s**, against roughly 35 MB/s
-of real-world USB 2.0 High Speed. **USB 3.0 is not required for timelapse**, and the camera's
-256 MB DDR3 buffer absorbs readout while the host is busy writing. USB 3.0 only matters for the
-46.9 fps video the camera is otherwise sold for.
+of real-world USB 2.0 High Speed. So **bandwidth does not require USB 3.0**, and the camera's 256 MB
+DDR3 buffer absorbs readout while the host is busy writing. USB 3.0 only matters for the 46.9 fps
+video the camera is otherwise sold for.
+
+That applies to the ZWO, whose vendor protocol degrades gracefully onto a USB 2.0 port. It does
+**not** apply to Variant B: **USB3 Vision is defined over USB 3.0 only**, so a machine-vision camera
+needs a genuine SuperSpeed host port whatever the data rate. Worth knowing, because it rules out
+most of the very small boards.
 
 ### Candidate host
 
@@ -177,6 +184,141 @@ session; the card is sized to one charge, exactly as in the Pi build.
 
 Develop-on-box only becomes attractive if card cost or offload time becomes the annoyance, and it
 can be added later without changing anything else.
+
+---
+
+## Variant B — the Basler dart, and the box it makes possible
+
+Everything above assumes an astronomy camera, and pays for it in bulk. A **board-level
+machine-vision camera** is the same architecture — no ISP, you own the exposure register, Linux
+host, raw frames — in a fundamentally different package.
+
+| | ZWO ASI585MC | **Basler dart daA3840-45uc** | Arducam B0587 (owned) |
+|---|---|---|---|
+| Size | 62 mm barrel | **29.3 × 29 × 19.9 mm** | small board |
+| Weight | ~136 g | **5 g** | a few grams |
+| Power | 2.5 W max | **~2 W typical** | unmeasured |
+| Mount | M42 | **S-mount = M12** | M12 |
+| Sensor | IMX585 1/1.2″ 2.9 µm | IMX334 1/1.8″ **2.0 µm** | IMX678 1/1.8″ 2.0 µm |
+| Generation | STARVIS 2 | **STARVIS 1** | STARVIS 2 |
+| Bit depth | 12-bit | 8 or 12-bit | 8-bit |
+| Protocol | vendor binary, closed | **USB3 Vision / GenICam — open** | UVC |
+| Price | ~€440 | **~€185** | ~€90 |
+
+Three things change, and they are the three objections to the astro build:
+
+- **It fits the original enclosure.** A 29 mm board with an M12 thread, not a 62 mm barrel, so the
+  37 mm screw-in window and the pocketable box survive.
+- **The protocol is an open standard.** USB3 Vision and GenICam are public, and `aravis` implements
+  them as open source. Unlike the ZWO binary, nothing here depends on one vendor continuing to ship
+  an aarch64 `.so`. Basler also ship pylon for Linux ARM64 if the vendor path is preferred.
+- **It is less than half the price**, and M12 keeps the lens ecosystem already understood.
+
+What is given back: **IMX334 is STARVIS 1 at the same 2.0 µm pitch as the IMX678 already owned**, so
+there is no low-light gain over the current camera — only exposure control. All the ISP costs of
+Decision 1 still apply, and one more constraint appears: **USB3 Vision is defined over USB 3.0
+only**, so unlike the ZWO — which is a vendor protocol that degrades gracefully onto USB 2.0 — the
+dart requires a genuine USB 3.0 host port.
+
+### The number still missing, and how to get it
+
+**Basler do not publish the dart's exposure range** either. Their documentation has a per-model
+table — ace 2 models reach 10,000,000 µs, older families cap near 1 s — but dart is absent from it,
+and three separate routes through the product pages, distributor listings and datasheets produced
+nothing. The category-wide problem from the UVC survey holds here too.
+
+The difference is that **GenICam cameras self-describe.** Every feature, with its minimum, maximum
+and increment, is published by the camera in a machine-readable XML that the host reads at
+connection. `arv-tool-0.8 features` prints the lot. So the number is *discoverable in one command* —
+it simply requires the camera, or somebody's dump of one.
+
+That is better than UVC, but it is not proof of honesty: the Arducam also self-reported a range that
+turned out to be a lie. The difference is one of incentive rather than mechanism — deterministic
+control is what machine-vision cameras are sold for. **Verify by measurement regardless.**
+
+### The box
+
+```
+   ┌──────────────────────────────────────────────┐
+   │   ◎  37 mm screw-in window                   │   front face
+   │      UV/IR-cut, and the ND mount             │
+   └──────────────────────────────────────────────┘
+
+   ┌──────────────────────────────────────────────┐
+   │ ┌─────────┐    ┌───────────────────────────┐ │
+   │ │ dart    │    │  4 × 18650, 2×2 sled      │ │
+   │ │ + M12   │    │  65 × 36 × 36 mm          │ │
+   │ │ 29×29   │    └───────────────────────────┘ │
+   │ └─────────┘                                  │
+   │ ┌────────────────┐   ┌────────────────────┐  │
+   │ │ Radxa Zero 3W  │   │ Witty Pi 4 Mini    │  │
+   │ │ 65 × 30        │   │ or DS3231 latch    │  │
+   │ └────────────────┘   └────────────────────┘  │
+   │ [internal USB-C: phone config]   [boost]     │
+   └──────────────────────────────────────────────┘
+            ≈ 140 × 90 × 60 mm
+```
+
+**Roughly 140 × 90 × 60 mm** — larger than the Pi build's 120 × 80 × 55 because of four cells rather
+than two, but a jacket-pocket object rather than the astro build's 160 × 120 × 90 camera bag. The
+original enclosure concept survives intact: screw-in filter as the window, no external ports,
+opened to charge.
+
+**Configuration is over USB, not WiFi.** An internal USB-C socket on the host's OTG port presents
+the box to a phone as a network device (CDC-NCM); the phone's browser opens the existing preview
+page. Since the box is already opened to swap cells, an internal socket costs no new hole — and it
+removes the WiFi AP, the captive-portal handling, and on an MCU host would remove a whole companion
+radio. The caveat is iOS: USB-C iPhones speak CDC-NCM, Lightning ones do not reliably.
+
+| # | Part | ≈ EUR |
+|---|---|---|
+| 1 | Basler dart daA3840-45uc, S-mount | 185 |
+| 2 | M12 lens covering 1/1.8″, ~4 mm for a wide view | 60 |
+| 3 | Radxa Zero 3W, 2 GB — **USB 3.0 host required** | 30 |
+| 4 | 37 mm UV/IR-cut filter, doubling as the window | 25 |
+| 5 | 256 GB A2 microSD | 25 |
+| 6 | Pololu U3V50F5 boost | 18 |
+| 7 | Witty Pi 4 Mini *or* DS3231 + P-FET latch | 15–22 |
+| 8 | 4 × 18650 + 2×2 sled | 40 |
+| 9 | Bay charger | 25 |
+| 10 | IP65 enclosure ≈140 × 90 × 60 mm | 22 |
+| 11 | O-ring, vent plug, desiccant, inserts | 25 |
+| | **total** | **≈ 470** |
+
+Against ~€800 for the ZWO variant, ~€350 for the UVC build and ~€175 for the Pi build.
+
+### Power
+
+| | |
+|---|---|
+| Camera, typical | ~2.0 W |
+| Radxa Zero 3W, idle headless | ~2.0 W |
+| **Design point while shooting** | **~4.0 W** |
+
+Only half a watt better than the ZWO variant, and the reason is worth noticing: **the host is half
+the budget.** Choosing a more efficient camera barely moves it. The only real lever would be a
+lower-power Linux host, and USB3 Vision's USB 3.0 requirement rules out most of the very small
+boards.
+
+| Session | At the rail | From cells (÷0.88) | Ah at 3.7 V | +25 % derate |
+|---|---|---|---|---|
+| 8 h | 32 Wh | 36.4 Wh | 9.8 Ah | **12.3 Ah** — 4 cells |
+| 12 h | 48 Wh | 54.5 Wh | 14.7 Ah | **18.4 Ah** — 6 cells |
+
+Four cells for a comfortable 8 h is the design point above. Twelve hours needs six and stops being
+pocketable, which is the same conclusion the ZWO variant reached.
+
+### What to verify, in order
+
+1. **Read the exposure range off the camera.** `arv-tool-0.8 features` or pylon Viewer, one command.
+   This decides everything and needs the camera in hand — so borrow, or buy on a returnable basis.
+2. **Confirm it is measured, not merely advertised.** Same sweep as
+   [`phase0/exposure_sweep.py`](phase0/exposure_sweep.py). The Arducam self-reported a range it did
+   not honour.
+3. **Check the pixel formats.** Whether the dart emits anything but Bayer decides how much host work
+   there is. Unconfirmed — the documentation page 404s.
+4. **Confirm `aravis` drives it on aarch64** before committing to the open-protocol argument.
+5. **Measure power** at the rail, camera and host separately.
 
 ---
 
@@ -344,20 +486,28 @@ In order, and the first one is free.
 
 ## Relationship to the other builds
 
-| | [Pi build](PI-BUILD.md) | [UVC build](UVC-BUILD.md) | **Astro build** |
-|---|---|---|---|
-| Cost | ~€175 | ~€350 | **~€800** |
-| Exposure range | full sensor control | **4.91 stops, measured** | ~26 stops, published |
-| ISP | Pi's, tuned | camera's, tuned | **none — done in post** |
-| Host | Pi Zero 2 W | SBC or MCU | **SBC only** |
-| Idle floor | ~1.5 W | ~30 µA in tier C | ~2 W |
-| Shooting power | ~1.1 W | ~2.5 W | **~4.5 W** |
-| Pocketable | yes | yes | **no** |
-| Sourceable today | **no** | yes | yes |
+| | [Pi build](PI-BUILD.md) | [UVC build](UVC-BUILD.md) | Astro, ZWO | **Astro, Variant B** |
+|---|---|---|---|---|
+| Cost | ~€175 | ~€350 | ~€800 | **~€470** |
+| Exposure range | full sensor control | **4.91 stops, measured** | ~26 stops, published | **unknown — but readable off the camera** |
+| Sensor | IMX708 | IMX678 2.0 µm | IMX585 **2.9 µm** | IMX334 2.0 µm, STARVIS 1 |
+| ISP | Pi's, tuned | camera's, tuned | none — done in post | none — done in post |
+| Host | Pi Zero 2 W | SBC or MCU | SBC only | SBC only, **USB 3.0 required** |
+| Idle floor | ~1.5 W | ~30 µA in tier C | ~2 W | ~2 W |
+| Shooting power | ~1.1 W | ~2.5 W | ~4.5 W | **~4.0 W** |
+| Pocketable | yes | yes | **no** | **yes** |
+| Driver | open | open (UVC) | **closed binary** | **open standard** |
+| Sourceable today | **no** | yes | yes | yes |
 
 The honest summary: **the Pi build is the best design and cannot be bought; the UVC build can be
-bought and cannot make the picture; this build can do both and is twice the size, twice the power
-and four times the price.**
+bought and cannot make the picture; this build can do both, at twice the power and — in the ZWO
+form — twice the size and four times the price.**
+
+**Variant B is the interesting one.** It keeps the pocketable box, halves the cost of the ZWO
+variant, and replaces a closed binary with an open standard, at the price of a sensor no better than
+the one already owned. It is worth nothing at all, however, until its exposure range is read off a
+real camera — which is the same mistake this project has already made once, and is the reason
+nothing should be ordered on the strength of this table.
 
 Nothing here should be bought until the two free questions from
 [UVC-BUILD.md](UVC-BUILD.md) are answered — whether Arducam can lift the 14.4 ms cap in firmware,
