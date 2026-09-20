@@ -1629,6 +1629,62 @@ OS08A10 has a two-exposure staggered HDR mode for the same reason.
 vendors, and the count of manufacturers stating the figure remains two — both selling into
 microscopy.
 
+##### Above 4K: the hypothesis that a high-resolution sensor cannot be a video part
+
+If a module carries 12 or 20 megapixels it cannot be a video camera — no video standard consumes
+that, and the firmware has nowhere to hide. Overshooting resolution is also free here, since crop
+room was always wanted. Testing it produced the strongest candidate in this document.
+
+**ToupTek C2CMOS12000KPA**
+
+| | |
+|---|---|
+| Sensor | Sony **IMX577**, 12 MP, **3840×3040**, 1.55 µm, BSI |
+| Interface | **UVC, USB 2.0** — plug-and-play, tier C alive |
+| Output | **MJPEG** |
+| ISP | **built-in hardware ISP** |
+| Exposure | **0.1–2000 ms — 14.3 stops**, published for the series |
+| Dynamic range | 70 dB |
+| Frame rate | 20 fps at full resolution |
+| Buffer | onboard large-capacity buffer |
+| Mount / size | C-mount, 29 × 29 × 30 mm |
+
+**3840×3040 is 4:3, so a 16:9 crop is exactly 3840×2160 with 880 pixels of vertical headroom** — 4K
+delivered, plus 29 % of the frame height spare for recomposing after the fact. That is the crop-room
+requirement met directly rather than traded away.
+
+Against the 8.3 MP sibling in the same series it costs **0.06 stops** of pixel area (1.55 µm against
+the IMX274's 1.62 µm), which is nothing, and buys the headroom. **It is the better of the two.**
+
+##### A mechanism that might support the hypothesis — with a caveat
+
+The B0587's cap was one full sensor readout: 2160 lines at a constant 6.67 µs. A sensor with more
+lines takes longer to read out, so the same firmware limitation would produce a **longer** cap for
+free. A 3648-line sensor at the same line time caps at 24 ms rather than 14.4 — and if its line
+time is slower still, considerably more.
+
+**The caveat matters though.** The B0587's cap exists *because* its output rate was pinned by USB 2.0
+bandwidth while the sensor kept reading fast. A high-resolution camera whose frame rate is
+bandwidth-limited rather than readout-limited would hit exactly the same wall — Arducam's 20 MP
+IMX283 module runs 9 fps at full resolution over USB 3.0, and 40 MB per uncompressed frame says that
+is bandwidth, not readout. **So resolution alone is not a guarantee.** MJPEG helps, because
+compression decouples the two.
+
+##### If gambling on an undocumented range, these are the tells
+
+Taking the view that a camera not built for video is worth a punt, the evidence assembled here gives
+four usable signals:
+
+1. **Resolution above 4K** — cannot be a video part.
+2. **Sold into a non-video market** — microscopy, inspection, metrology.
+3. **Full-resolution frame rate under ~25 fps** — nobody streams video at 20 fps.
+4. **The vendor publishes ranges for sibling products** — evidence they regard it as a specification
+   rather than an implementation detail.
+
+The **C2CMOS12000KPA satisfies all four**, and its series range is published outright, so it is
+barely a gamble. Arducam's 12 MP IMX708 USB modules satisfy only the first — they are marketed as
+webcams, from the vendor whose cap started this — and should be assumed to repeat the B0587.
+
 ##### Three patterns fall out
 
 **Arducam's C-mount USB 3.0 line is YUY2-only.** B0497, B0498 and B0477 all drop MJPEG, per their own
