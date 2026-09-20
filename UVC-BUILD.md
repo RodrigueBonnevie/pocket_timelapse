@@ -1685,6 +1685,66 @@ The **C2CMOS12000KPA satisfies all four**, and its series range is published out
 barely a gamble. Arducam's 12 MP IMX708 USB modules satisfy only the first — they are marketed as
 webcams, from the vendor whose cap started this — and should be assumed to repeat the B0587.
 
+##### Availability of the C2CMOS in Europe — checked 2026-09-21
+
+**It is not distributed here.** nimax's shops (astroshop.eu, optics-pro.com, micro-pro.com — all
+quoting SEK and shipping to Sweden) are ToupTek's main European distributor and carry the E3ISPM,
+E10ISPM, SCAM and XCAM lines, but **no C2CMOS at all**. It appears to be an OEM/budget line sold
+direct or through the AliExpress-class channel. AMADA Camera (amadascope.com) lists it.
+
+So the C2CMOS needs a direct enquiry, and the *distributed* ToupTek line prices as follows in SEK:
+
+| Model | MP | Price |
+|---|---|---|
+| **E3ISPM 25000A** | 25 | **Skr 6,000** |
+| E3ISPM 12000B | 12 | Skr 7,300 |
+| E3ISPM 8300D | 8.3 | Skr 7,700 |
+| E3ISPM 20000 | 20 | Skr 8,500 |
+| E10ISPM 8300KPA (IMX585) | 8.3 | Skr 11,300 |
+| E10ISPM 20000KPA | 20 | Skr 13,500 |
+| E3ISPM 45000B | 45 | Skr 20,300 |
+
+Note the E3ISPM 25000A at Skr 6,000 for 25 MP — cheaper than the 8.3 MP part. Resolution is not what
+these are priced on. The E3ISPM line is USB 3.0 with a 12-bit hardware ISP; whether it is UVC or
+SDK-only is unconfirmed and decides whether tier C survives.
+
+##### A spread of the above-4K field, for orientation
+
+Requirements deliberately loosened. This is a map, not a shortlist.
+
+| Camera | MP / output | Sensor, pixel | Interface | Market | Range | Price |
+|---|---|---|---|---|---|---|
+| Arducam B0587 *(owned)* | 8.3, 3840×2160 | IMX678 1/1.8″ **2.0 µm** | **UVC, USB 2.0, MJPEG** | surveillance | **4.91 st** | ~Skr 1,000 |
+| **ToupTek C2CMOS12000KPA** | 12, 3840×3040 | IMX577 1/2.3″ 1.55 µm | **UVC, USB 2.0, MJPEG** | microscopy | **14.3 st** | direct only |
+| e-con e-CAM82_USB | 8.3 | IMX415 1/2.8″ 1.45 µm | **UVC, USB 2.0, MJPEG** | embedded | ? | quote |
+| e-con See3CAM_CU81 | 8.3 | AR0821 1/1.7″ **2.1 µm**, HDR | UVC, USB 3.1 | embedded | ? | quote |
+| **e-con See3CAM_CU200** | **20, 5120×3840** | AR2020 1/1.8″ 1.4 µm | UVC USB 3.2, **UYVY only** | embedded | ? | quote |
+| Arducam B0477 | **20, 5472×3648** | IMX283 **1″** 2.4 µm | UVC USB 3.0, **YUY2 only** | industrial | ? | ~Skr 2,500 |
+| ToupTek E3ISPM 25000A | 25 | — | USB 3.0, UVC unconfirmed | microscopy | 0.1 ms–15 s (series) | **Skr 6,000** |
+| Arducam IMX586 | 48 | 0.8 µm | UVC USB 3.0 | webcam | ? | ~Skr 1,500 |
+| Arducam OV64A40 | 64 | 1/1.32″ | UVC USB 3.0 | webcam | ? | ~Skr 2,000 |
+| ZWO ASI294MC | 10.7, 4144×2822 | IMX294 **4/3″, 4.63 µm** | SDK, closed | astronomy | **~26 st** | ~Skr 5,500 |
+| ZWO ASI585MC | 8.3 | IMX585 1/1.2″ 2.9 µm | SDK, closed | astronomy | **~26 st** | Skr 6,350 |
+| Basler ace 2 | up to 24 | Pregius / STARVIS | USB3 Vision | machine vision | **up to 10 s, published** | Skr 5–10k |
+| **Used mirrorless + gphoto2** | **24, APS-C** | **~3.9 µm — +1.9 st over IMX678** | USB tether, Linux | photography | **30 s – 1/4000, ~17 st** | **~Skr 2,500 used** |
+
+**Three things this map makes obvious.**
+
+Pixel size spans **1.4 µm to 4.63 µm — 3.5 stops** — and it runs almost exactly opposite to
+resolution. The 20 MP and 48 MP webcam-derived parts have the *smallest* pixels of anything here.
+Resolution and light-gathering are competing for the same silicon.
+
+The **IMX294 at 4/3″ and 4.63 µm** is the low-light outlier: +2.4 stops over the sensor already
+owned, in a 10.7 MP part that still clears 4K at 4144×2822. Sony launched it for surveillance; only
+astronomy ever housed it.
+
+And **the used-mirrorless row is not a joke.** If size no longer matters and a Linux host is needed
+anyway, a second-hand APS-C body gives ~1.9 stops more light per pixel than the IMX678, a 17-stop
+exposure range, a real lens mount, and costs less than the ZWO — controlled over USB with `gphoto2`,
+which is mature and open. Against it: bulk, a few watts, a mechanical shutter to avoid (use the
+electronic one), and it is emphatically not a module. It is, however, what a photographer would
+actually reach for, and this document should say so.
+
 ##### Three patterns fall out
 
 **Arducam's C-mount USB 3.0 line is YUY2-only.** B0497, B0498 and B0477 all drop MJPEG, per their own
