@@ -123,6 +123,105 @@ retracts, protecting itself. CHDK's USB-pulse channel makes the electronics triv
 lower power than a DSLR, tiny, and Magic Lantern does the ramping. Against it: an interchangeable
 lens means buying glass and a much larger window, and it has a **mechanical shutter**.
 
+### Interchangeable-lens bodies, used
+
+Sensor area against the IMX678's 33.6 mm², at equal field of view and f-number.
+
+| Body | Mount | Sensor | Area | vs IMX678 | E-shutter | Built-in interval | DC coupler | Used |
+|---|---|---|---|---|---|---|---|---|
+| **Panasonic GX85 / GX80** | MFT | 17.3×13.0 | 225 mm² | **+2.74 st** | **yes** | **yes** | DMW-DCC11 | ~€250 |
+| **Panasonic G7** | MFT | 17.3×13.0 | 225 mm² | **+2.74 st** | **yes** | **yes** | DMW-DCC8 | ~€180 |
+| **Panasonic GX7** | MFT | 17.3×13.0 | 225 mm² | **+2.74 st** | **yes** | **yes** | DMW-DCC11 | ~€150 |
+| Olympus E-M10 II | MFT | 17.3×13.0 | 225 mm² | +2.74 st | yes | yes | via AC adapter | ~€180 |
+| Canon EOS M | EF-M | 22.3×14.9 | 332 mm² | **+3.31 st** | no | via Magic Lantern | DR-E12 | ~€130 |
+| Canon 100D / 650D | EF | 22.3×14.9 | 332 mm² | +3.31 st | no | via Magic Lantern | DR-E12 / E8 | ~€130 |
+| Sony a6000 | E | 23.5×15.6 | 367 mm² | **+3.45 st** | no (EFCS only) | **no — app discontinued** | AC-PW20 | ~€250 |
+| Sony NEX-5N / 6 | E | 23.5×15.6 | 367 mm² | +3.45 st | no | no | AC-PW20 | ~€120 |
+| Nikon 1 J5 | Nikon 1 | 13.2×8.8 | 116 mm² | +1.79 st | yes | yes | EP-5 | ~€150 |
+
+**The Panasonic MFT bodies are the answer for this build**, and it is not close:
+
+- **Built-in intervalometer**, so the camera runs the whole session — the MCU is a timer switch.
+- **Electronic shutter**, so there is *no mechanical wear at all*. This is the single biggest
+  practical difference against every DSLR here: 8,640 actuations a session against a 100,000 rating
+  makes a mechanical shutter a consumable, and an electronic one makes that number irrelevant.
+- **DC couplers are cheap and everywhere** — DMW-DCC8 and DCC11 are commodity parts.
+- 16 MP at 4592×3448, so a 16:9 crop is 4592×2583 — above 4K with room spare.
+
+The **GX7 at ~€150** is the value pick; the **G7** adds an articulating screen; the **GX85** adds IBIS
+and drops the AA filter.
+
+**Watch the Sony trap.** The a6000's interval shooting came from a PlayMemories app, and Sony shut
+that store down — so a used a6000 has *no* built-in intervalometer today despite what old reviews
+say. It needs external triggering, which works but gives up the "camera does everything" advantage.
+
+### Lens mounts, and why old glass is technically better here
+
+**Aperture flicker is a real and documented timelapse failure**, not a preference. An electronic lens
+re-actuates its diaphragm for every frame and does not land in exactly the same place twice; the
+result is visible brightness stepping through the sequence. The standard fixes are the "lens twist
+trick" — partially unmounting the lens to break the electrical contacts so the blades stay put — or,
+simply, **a lens with a real aperture ring, which cannot flicker because nothing moves.**
+
+So a manual vintage lens is **cheaper *and* better** for this application. It also cannot hunt,
+cannot drift on power-up, and has one less thing to fail in a box on a hillside.
+
+#### What each mount can adapt
+
+Short flange distance is what buys adaptability — the mount must sit *closer* to the sensor than the
+lens was designed for.
+
+| Mount | Flange | What adapts onto it |
+|---|---|---|
+| **Fuji X** | 17.7 mm | everything below |
+| **Sony E** | 18 mm | everything below |
+| **Canon EF-M** | 18 mm | everything below |
+| **Micro Four Thirds** | 19.25 mm | **M42, OM, MD/MC, FD, C/Y, PK, Nikon F, Leica R, EF…** |
+| Canon EF | 44 mm | M42, Leica R, C/Y — a short list |
+| Nikon F | 46.5 mm | almost nothing |
+
+**Any of the mirrorless mounts adapts essentially every vintage SLR lens ever made**, with a dumb
+mechanical adapter at €10–25. The DSLR mounts do not, which is another mark against the Canon DSLRs.
+
+#### Vintage families worth buying, cheapest first
+
+| Family | Typical 50 mm price | Notes |
+|---|---|---|
+| **M42 screw** | €20–60 | Takumar, Zeiss Jena, Praktica. Enormous supply, the cheapest route in |
+| **Minolta MD / MC** | €25–70 | Orphaned mount, so excellent glass at low prices |
+| **Canon FD** | €25–80 | Also orphaned when Canon moved to EF — bargains |
+| **Olympus OM** | €40–100 | Compact, well made |
+| **Pentax K** | €30–80 | Still mountable on modern Pentax, so slightly dearer |
+| **Nikon F (AI/AI-S)** | €50–150 | Still usable natively, so the priciest |
+| C-mount (16 mm cine) | €20–60 | **Image circle too small** — vignettes on MFT and above |
+
+#### The catch: vintage is not wide
+
+For a cityscape you want roughly 75–90° diagonal, which means:
+
+| Format | Diagonal | 90° needs | 75° needs |
+|---|---|---|---|
+| MFT | 21.6 mm | **10.8 mm** | 14 mm |
+| APS-C | 28.2 mm | **14 mm** | 18 mm |
+
+**Cheap vintage glass is 28 mm, 50 mm and 135 mm.** A €40 vintage 28 mm becomes a 56 mm-equivalent on
+MFT — a short telephoto, not a landscape lens. Vintage wide-angles are exactly the expensive
+exception, and on MFT the 2× crop makes it worse.
+
+**The fix is a modern manual lens**, which keeps the aperture-ring advantage and costs little:
+
+| Lens | Format | Mount | ≈ Price |
+|---|---|---|---|
+| 7artisans 7.5 mm f/2.8 fisheye | MFT | native MFT | €130 |
+| Meike / 7artisans 12 mm f/2.8 | MFT & APS-C | native MFT / E / EF-M | €150 |
+| TTArtisan 11 mm f/2.8 | APS-C | native E / EF-M / X | €200 |
+| Laowa 7.5 mm f/2 | MFT | native MFT | €450 |
+
+All fully manual with real aperture rings, native mount, no adapter. **Buy one modern manual wide for
+the actual work, and adapt vintage glass when a longer view is wanted** — which for a timelapse box
+is a genuinely useful second option, since a 50 mm equivalent view of a distant skyline is a
+different and often better picture than a wide one.
+
 ### Shutter wear is the deciding constraint for the DSLRs
 
 One 12 h session at 5 s is **8,640 actuations**. Against a 100,000-rated shutter that is **twelve
