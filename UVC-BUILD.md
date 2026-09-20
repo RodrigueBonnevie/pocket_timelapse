@@ -1454,6 +1454,43 @@ and — above all — **the 0.1–2000 ms range is published, not measured.** Th
 it did not honour. Measure it with [`phase0/exposure_sweep.py`](phase0/exposure_sweep.py) before
 believing a word of it.
 
+#### What these actually cost, delivered to Sweden — checked 2026-09-21
+
+Astroshop quotes in SEK and ships to Sweden, so these are real landed prices rather than list.
+
+| Camera | Sensor | Exposure range | Onboard ISP | Host | Price |
+|---|---|---|---|---|---|
+| **Arducam B0587** (owned) | IMX678 2.0 µm | **4.91 stops, measured** | yes, UVC | **MCU possible** | ~Skr 1,000 |
+| **ToupTek C2CMOS08300KPA** | IMX274 1.62 µm | 14.3 stops, published | **yes, UVC + MJPEG** | **MCU possible** | **no quote found** |
+| Basler dart daA3840-45uc | IMX334 2.0 µm | unknown | unlikely | Linux | ~Skr 2,000 |
+| **ZWO ASI585MC** | IMX585 2.9 µm | **~26 stops** (max 33.3 min) | no | Linux | **Skr 6,350** |
+| Player One Uranus-C | IMX585 2.9 µm | comparable | no | Linux | comparable |
+| ToupTek E10ISPM 8300KPA | IMX585 2.9 µm | 17.2 stops | **yes**, but SDK | Linux | **Skr 11,300** |
+
+Both ToupTek and ZWO quote 3–5 weeks.
+
+**Microscopy housings cost roughly double astronomy housings for the same silicon.** The E10ISPM and
+the ASI585MC carry the same IMX585; the microscopy part costs Skr 5,000 more. Laboratory pricing,
+not better hardware.
+
+**Which makes the E10ISPM poor value here, and the reason is structural.** Its onboard ISP would be
+worth paying for if it bought back the MCU host — but it does not: USB 3.2 and a vendor SDK mean a
+Linux host either way. And a Linux host can perform the demosaic itself. So the extra Skr 5,000 buys
+*convenience*, not architecture. Against the ZWO it is the same sensor, nine fewer stops and twice
+the price.
+
+**That leaves a genuine two-way decision:**
+
+- **ToupTek C2CMOS** — keeps the entire architecture of this document. UVC, MJPEG, onboard tuned ISP,
+  USB 2.0, so `v4l2.py` works unchanged and **tier C survives**. Fixes the range. Costs a materially
+  worse sensor, which the exposure arithmetic above suggests does not matter. **Price unknown and it
+  is not carried by the astronomy retailers — it needs a quote from ToupTek or a microscopy
+  distributor, and that is the next thing to find out.**
+- **ZWO ASI585MC** — the best sensor and by far the widest range, at Skr 6,350, but no ISP, a
+  mandatory Linux host, a closed driver, and a colour pipeline to build in post.
+
+Everything else is dominated by one of those two.
+
 #### Vendors with an open platform
 
 Three, in descending order of how relevant they are to the camera already owned.
