@@ -1,13 +1,34 @@
 # Pocket Timelapse Camera — the consumer-camera build
 
-**Status: exploration.** Nothing measured. This is the architecture the project started from, revisited
-after Phase 0 established that the module path's problem is exposure range rather than sensor quality.
+**Status: exploration, but the most promising one here.** Nothing measured. This is the architecture
+the project started from, revisited after Phase 0 established that the module path's problem is
+exposure range rather than sensor quality.
 
 The premise: **stop trying to find a camera module that behaves like a camera, and use a camera.**
 
-**Not the good camera.** An R7 left in a wood is a bad trade, and the R-line is poorly suited anyway.
-See *The cheap-body shortlist* below — the answer is an old body running CHDK or Magic Lantern, where
-the MCU does nothing but switch the power.
+## The build, in one paragraph
+
+**A used Panasonic GX7, a cheap manual wide lens, a dummy battery, two 18650s and a timer.** The
+camera's own intervalometer runs the session, its electronic shutter means no mechanical wear, its
+ISP is tuned by people who make cameras, and it writes to its own SD card. **The MCU does nothing but
+switch the rail on at dusk and off again** — which is the DS3231 + P-FET latch already designed in
+[PI-BUILD.md](PI-BUILD.md), sitting at microamps in between.
+
+| | |
+|---|---|
+| Sensor | **+2.74 stops** over the IMX678 measured in Phase 0 |
+| Exposure range | the camera's own — **~17 stops**, against 4.91 |
+| Software to write | **the timer. That is all** |
+| Cost | **~€320** complete |
+| Power | ~1.6 W shooting, **2 cells for a sunset** |
+
+No demosaic, no ISP tuning, no `ramp.py`, no `storage.py`, no V4L2, no PTP, no USB host. Every piece
+of the problem this repository has been solving is already solved inside a camera that costs €150
+second-hand.
+
+**Not the good camera.** An R7 left in a wood is a bad trade, and the R-line is poorly suited anyway —
+high power, no on-camera scripting, quirky `gphoto2` support. It appears below only to show what the
+*format* buys.
 
 ---
 
@@ -338,19 +359,43 @@ cycle, and it can be done before buying anything else.
 
 ## Hardware around the camera
 
+### The recommended build — Panasonic MFT
+
+| # | Part | Role | ≈ EUR |
+|---|---|---|---|
+| 1 | **Panasonic GX7**, used | body — e-shutter, built-in intervalometer | **150** |
+| 2 | **7artisans / Meike 12 mm f/2.8**, native MFT | manual aperture ring: **cannot flicker** | **150** |
+| 3 | **DMW-DCC11 DC coupler** | replaces DMW-BLG10, takes external ~7.4 V | 20 |
+| 4 | Boost/buck to 7.4 V | from the 18650 pack | 15 |
+| 5 | 2 × 18650 + sled | ~25 Wh — a sunset with margin | 20 |
+| 6 | DS3231 + P-FET latch *or* Witty Pi | **the only electronics that do anything** | 15 |
+| 7 | Bay charger | charge outside the box | 25 |
+| 8 | 52 mm filter as the optical window | small front element, so a small window | 20 |
+| 9 | IP65 case ≈ 180 × 130 × 110 mm | enclosure | 25 |
+| 10 | Vent plug, desiccant, O-rings, 1/4″ inserts | sealing and mount | 25 |
+| | | **total** | **≈ 465** |
+| | | **…excluding lens and body** | **≈ 165** |
+
+Against ~€175 for the Pi build, ~€350 for the UVC build, ~€470 for the Basler variant and ~€800 for
+the ZWO astro build — and this is the only one of them that can actually photograph a sunset today.
+
+**Storage is the camera's own SD card.** No microSD on the host, no fuel gauge, no boost for a Pi, no
+storage code, no corruption handling.
+
+**The optical window is small**, because a 12 mm MFT lens has a 46 mm filter thread — so a 52 mm
+filter works as the window and the original enclosure thinking survives, rather than the 77 mm plate
+an interchangeable-lens full-frame body would need.
+
+### If the MCU is to do more than switch power
+
+Optional, and only if the camera's own Av + Auto ISO ramp proves unsatisfactory:
+
 | Part | Role | ≈ EUR |
 |---|---|---|
-| **DC coupler (dummy battery)** — Canon DR-E6NH | replaces LP-E6NH, takes external 7.4–8.4 V | 40 |
-| Boost/buck to 8.4 V | from the 18650 pack | 15 |
-| 2–4 × 18650 + sled | see the sizing section — 2 cells for a sunset, 3–4 for 12 h | 20–40 |
-| **ESP32-P4** (level 1) *or* optocoupler + 2.5 mm remote lead (level 0) | control | 15 / 5 |
-| DS3231 + P-FET latch, or Witty Pi | scheduled wake, switched rail | 15 |
-| **Large flat optical window** | 77 mm+ filter or a flat port | 40 |
-| Weatherproof case, ~250×180×150 mm | enclosure | 40 |
-| Vent plug, desiccant, O-rings, inserts | sealing | 25 |
-| | **total, excluding the camera** | **≈ 230** |
+| Optocoupler + 2.5 mm remote lead | external trigger, level 0 | 5 |
+| ESP32-P4 with USB host | PTP control, level 1 | 15 |
 
-The camera's own SD card is the storage. No microSD on the host, no boost for a Pi, no fuel gauge.
+The Panasonic remote socket is a 2.5 mm jack, so external triggering is a transistor and two wires.
 
 ---
 
@@ -411,9 +456,12 @@ have.
 
 ## What to find out, in order
 
-1. **Measure the power** in all three levels, especially level 0 with the camera asleep between
-   frames. This is the number that decides whether this is the best architecture here or merely a
-   good one.
+0. **Borrow or buy a GX7 and run its own intervalometer through one real sunset**, on its own
+   battery, Av with Auto ISO, before building anything at all. That answers the only question that
+   matters — does the camera's own exposure ramp look acceptable — and it needs no hardware, no
+   firmware and no enclosure.
+1. **Measure the power** with the two-run battery experiment above. This decides the cell count and
+   whether this is the best architecture here or merely a good one.
 2. **Verify PTP control of the exact body** on a laptop with `gphoto2` first. Canon R-series support
    is **partial and quirky**: ISO and aperture work on the R7, `exposurecompensation` is a known open
    bug, and gphoto2 has reported shutter/aperture inconsistencies across the R line. Confirm that

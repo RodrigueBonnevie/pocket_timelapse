@@ -128,13 +128,39 @@ architecture.
 
 ## Outside the box
 
-| Option | Sensor | Exposure range | Why it is here | Price |
-|---|---|---|---|---|
-| **Used mirrorless + `gphoto2`** | APS-C, **~3.9 µm** | **30 s – 1/4000 ≈ 17 stops** | +1.9 stops per pixel over the IMX678, a real lens mount, mature open control | **~Skr 2,500 used** |
+Whole cameras, where the ISP, the ramp, the storage and the intervalometer are already solved
+on board. Sensor area against the IMX678's 33.6 mm². See [CAMERA-BUILD.md](CAMERA-BUILD.md).
 
-Bulk, a few watts, a mechanical shutter to avoid — and not a module. But with size no longer a
-requirement and Linux needed anyway, it is what a photographer would actually reach for, and it
-costs less than the ZWO.
+| Body | Mount | Sensor area | vs IMX678 | E-shutter | On-board interval | Used |
+|---|---|---|---|---|---|---|
+| **Panasonic GX7** | MFT | 225 mm² | **+2.74 st** | **yes** | **built in** | **~€150** |
+| Panasonic G7 | MFT | 225 mm² | +2.74 st | yes | built in | ~€180 |
+| Panasonic GX85 | MFT | 225 mm² | +2.74 st | yes | built in | ~€250 |
+| Olympus E-M10 II | MFT | 225 mm² | +2.74 st | yes | built in | ~€180 |
+| **PowerShot G1 X Mark II** | fixed lens | **262 mm²** | **+2.96 st** | — | **CHDK** | ~€250 |
+| PowerShot G7 X | fixed lens | 116 mm² | +1.79 st | — | CHDK | ~€200 |
+| Canon EOS M | EF-M | 332 mm² | **+3.31 st** | no | Magic Lantern | ~€130 |
+| Canon 100D / 650D | EF | 332 mm² | +3.31 st | no | Magic Lantern | ~€130 |
+| Sony a6000 | E | 367 mm² | **+3.45 st** | no | **none — app discontinued** | ~€250 |
+| Canon EOS R7 | RF | 332 mm² | +3.31 st | **yes** | built in | owned |
+
+**The Panasonic MFT bodies win despite the smaller sensor**: a built-in intervalometer means the
+camera runs the whole session and the MCU is reduced to a timer switch, and an **electronic shutter**
+makes mechanical wear — 8,640 actuations a session against a 100,000 rating — simply not a
+consideration. DC couplers are commodity parts.
+
+**Exposure range is the camera's own, around 17 stops**, against 4.91 measured on the module owned.
+That is the entire point of this category.
+
+**Mount flange distance decides what old glass adapts:** Sony E and Canon EF-M at 18 mm, MFT at
+19.25 mm — all take essentially every vintage SLR lens with a €10–25 adapter. Canon EF at 44 mm takes
+a short list; Nikon F at 46.5 mm almost nothing.
+
+And a **manual aperture ring is technically better here, not merely cheaper**: an electronic lens
+re-actuates its diaphragm every frame and does not land in the same place twice, which is visible
+brightness flicker through the sequence. Vintage glass cannot do that. The catch is that cheap
+vintage is 28/50/135 mm — a 56 mm equivalent on MFT — so a modern manual wide at €130–200 does the
+actual work and vintage covers the longer views.
 
 ---
 
