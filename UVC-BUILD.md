@@ -208,16 +208,28 @@ choice to the host choice:
 
 | | USB 2.0 | USB 3.0 |
 |---|---|---|
-| Bus power ceiling | **500 mA = 2.5 W** | 900 mA = 4.5 W |
-| Transfer, 2 MB frame | ~50 ms | ~5 ms |
+| Bus power *ceiling* | 500 mA = 2.5 W | 900 mA = 4.5 W |
+| What cameras actually draw | B0587: unmeasured | e-con e-CAM82_USB **0.73–1.07 W**; Basler dart ~1.9 W; ZWO ASI585MC ≤2.5 W |
+| Transfer, 2 MB MJPEG frame | ~50 ms | ~5 ms |
+| Transfer, 16.6 MB raw frame | ~500 ms | ~50 ms |
 | MCU host possible? | **yes** — ESP32-P4 has USB 2.0 HS host | **no** |
 
-A timelapse needs *one frame at a time*, not video, so USB 3.0's bandwidth buys nothing here — the
-transfer term is negligible either way. What it costs is real: **double the power ceiling, and it
-rules out the low-power host entirely.**
+> **Correction, 2026-09-21.** An earlier version of this section said USB 3.0 "costs double the power
+> ceiling", treating the ceiling as the draw. It is not: **a bus ceiling is what the host must be
+> able to supply, not what the device takes.** A USB 3.0 e-con e-CAM82_USB draws 0.73–1.07 W — less
+> than half the USB 2.0 ceiling. This is the same error that produced the bad `P_cam` estimate
+> corrected earlier in this document, now made twice, so it is worth naming plainly: **a bus
+> specification is a limit, not a measurement.**
+
+What USB 3.0 genuinely costs is a SuperSpeed PHY hungrier than a High Speed one — order 100–300 mW —
+and the loss of the MCU host, which is the part of the original claim that survives. What it buys is
+transfer time, and transfer time is `t_on`, and `t_on` is energy. A 16.6 MB raw frame takes ~500 ms
+on USB 2.0 against ~50 ms on USB 3.0; at ~2 W that is nearly a joule per frame. **For the raw-capture
+builds SuperSpeed is an argument in favour, not against.** For MJPEG at 2 MB a frame it is a wash.
 
 So the trade is: **IMX585 (+1.6 stops) forces an SBC host and its ~1.5 W floor. IMX678 (+0.5 stops)
-keeps the µA MCU host available.** Pick the sensor and the host together, not separately.
+keeps the µA MCU host available.** Pick the sensor and the host together, not separately — but pick
+on the host consequence, which is real, rather than on a power ceiling, which is not.
 
 ---
 
@@ -1384,6 +1396,64 @@ vendor SDK rather than UVC, and it is USB 3.2.
 the shelf.** Every piece of it does, and ToupTek build all of them. That makes them the vendor most
 worth asking, and the request is now precisely specifiable rather than vague.
 
+#### Does the lesser sensor actually matter? Probably not, and the arithmetic says so
+
+The instinct to reject the C2CMOS on its IMX274 deserves testing, because for a *tripod-mounted
+timelapse* exposure time is nearly free, and that changes the comparison completely.
+
+| | |
+|---|---|
+| B0587 maximum usable shutter | **14.4 ms**, measured |
+| C2CMOS maximum shutter | **2000 ms**, published |
+| Extra light available | 139× = **+7.1 stops** |
+| IMX274 deficit from pixel area (1.62 vs 2.0 µm) | −0.6 stops |
+| Plus generation — STARVIS 2 QE and read noise against a 2015 part | perhaps −0.5 to −1.0 |
+| **Net** | **+5.5 to +6.5 stops in the C2CMOS's favour** |
+
+**A worse sensor with seven more stops of shutter beats a better sensor without them, and it is not
+close.** The deficit is a rounding error against the range. This is the correct way round to think
+about it for this application, and the document had it backwards.
+
+Longer exposure is also cheap here in a way it would not be for a handheld camera: the box is on a
+tripod or clamp, the subject is a city or a landscape, and at a 5 s interval there is room for a 2 s
+exposure with time to spare.
+
+**Two things longer exposure does not fix**, and they are the honest case against:
+
+- **Per-frame dynamic range.** A smaller pixel has a smaller full well, so there are fewer stops
+  between the noise floor and clipping *within a single frame*. Longer exposure slides the histogram
+  along; it does not widen it. A sunset has enormous in-frame contrast, so this is a real cost and
+  the one worth measuring.
+- **Motion.** At 2 s, cloud and foliage smear. In a timelapse that is frequently *wanted* — long
+  exposure is a deliberate technique for smooth motion and it suppresses frame-to-frame strobing —
+  but it is a choice being made, not a free lunch.
+
+Two things that do not change at all: **crop room is identical**, since both are 3840×2160, and the
+smaller 1/2.5″ format makes C-mount lenses *cheaper and more plentiful*, not dearer — the opposite
+of the 1/1.2″ problem in [ASTRO-BUILD.md](ASTRO-BUILD.md).
+
+#### And the architecture survives intact
+
+The most important property of this camera is easy to miss among the sensor arithmetic:
+
+| | |
+|---|---|
+| Interface | **UVC** — no SDK, no driver, `v4l2.py` works as written |
+| Output | **MJPEG** — the camera still does the compression |
+| Bus | **USB 2.0** — so the **ESP32-P4 MCU host is still possible** |
+| ISP | **onboard, tuned** — no demosaic, no colour work, no flat frames |
+
+**Tier C survives.** Every other escape from the exposure problem — astro, machine vision, the dart —
+kills the microamp MCU tier, because all of them need a Linux userspace. This one does not. It is
+the UVC build with the exposure range fixed, not a different architecture.
+
+That makes it, on paper, the strongest option in this document. Unverified, and the caveats are
+substantial: no price was found, the listed weight of "0.5–0.55 kg" is implausible for a 29×29×30 mm
+housing and is probably a shipping figure, availability through microscopy distributors is untested,
+and — above all — **the 0.1–2000 ms range is published, not measured.** The B0587 published a range
+it did not honour. Measure it with [`phase0/exposure_sweep.py`](phase0/exposure_sweep.py) before
+believing a word of it.
+
 #### Vendors with an open platform
 
 Three, in descending order of how relevant they are to the camera already owned.
@@ -1613,6 +1683,7 @@ Prove them by running a session to empty.
 |---|---|
 | **Exposure control unusable** | Test 1, before any other spending. No workaround if it fails |
 | **Shutter caps at 14.4 ms on the B0587** | Measured. ~4.9 stops total against a sunset's ~10. Not a bug: Arducam sell long exposure as a separate tier (B0588, but 2 MP). Parked pending a real sunset test |
+| **Judging a camera by its sensor rather than its range** | For a tripod timelapse, +7 stops of shutter beats −1 stop of sensor by a wide margin. Rank exposure range first |
 | **Vendor-tuned ISP implies vendor-owned registers** | Structural, not a defect of this module: the tuning is only sold inside streaming-oriented products. Escapes are CSI+libcamera, or giving up the ISP for an astro/machine-vision camera |
 | **Too sensitive for daylight** | Measured: 2.3 stops over at minimum exposure, 48 % blown, fixed aperture so nothing left to turn down. ND on the 37 mm window; ND32-ND64 to also clear the steppy bottom of the range |
 | **ND helps one end and hurts the other** | A fixed ND cannot come off mid-session, so sunset-to-night either starts clipped or ends pinned. Pick per shoot; avoid variable ND, which bands across wide skies |
