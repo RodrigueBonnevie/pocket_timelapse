@@ -41,7 +41,7 @@ The brief is not set in stone, but it should be clear which parts this path push
 | MCU-based control | **Lost.** Not negotiable — see Decision 3 |
 | Swappable camera module | **Met differently** — M42/C-mount, a much wider lens and body ecosystem |
 | SD card of stills, no video encode | **Met** — and arguably better, since raw frames keep grading latitude |
-| **Pocketable** | **Breaks with the ZWO** (62 mm barrel, ~160×120×90 mm box). **Survives with Variant B** — a 29 mm board keeps it near 140×90×60 mm |
+| **Pocketable** | **Requirement withdrawn, 2026-09-21.** Size and weight are no longer constraints — the box travels in a bag. This removes the principal objection to the ZWO variant, and Variant B's chief advantage with it |
 
 ---
 
@@ -101,7 +101,7 @@ are a third source; all three have free Linux SDKs with aarch64 builds and INDI 
 | Mount | M42 + 1.25″ nosepiece | M12 |
 | Back focus | 6.5 mm | — |
 | Weight | ~136 g | a few grams |
-| Price | ~€440 | ~€90 |
+| Price | **Skr 6,350** delivered to Sweden, 3–5 weeks | ~€90 |
 
 **Take the uncooled version.** The cooled "Pro" draws up to 22.6 W with the TEC running, which is
 absurd on a battery, and thermal noise is irrelevant at the sub-second exposures a sunset needs.
@@ -203,7 +203,7 @@ host, raw frames — in a fundamentally different package.
 | Generation | STARVIS 2 | **STARVIS 1** | STARVIS 2 |
 | Bit depth | 12-bit | 8 or 12-bit | 8-bit |
 | Protocol | vendor binary, closed | **USB3 Vision / GenICam — open** | UVC |
-| Price | ~€440 | **~€185** | ~€90 |
+| Price | **Skr 6,350** | **~€185** | ~€90 |
 
 Three things change, and they are the three objections to the astro build:
 
@@ -411,9 +411,13 @@ The optical assembly is a **62 mm diameter barrel** plus a C-mount lens, so call
 62 mm across before the enclosure. Add a 65×30 mm board, four 18650s and a boost converter and the
 box lands near **160×120×90 mm**.
 
-That is a small camera bag, not a jacket pocket. **If "pocketable" is a hard requirement, this path
-fails it** and the decision is whether the exposure range is worth more than the size. That is a
-judgement, not a calculation, and it is the main thing to decide before spending anything.
+That is a small camera bag, not a jacket pocket. **This was the principal objection to the path, and
+as of 2026-09-21 it is withdrawn** — size and weight are no longer requirements, the box travels in a
+bag, and camera modules do not reach a size where this becomes a problem.
+
+The consequence is worth stating plainly: the ZWO variant's main cost has been removed, and Variant
+B's main advantage with it. The two are now separated by sensor, price and driver openness rather
+than by bulk, which is a far closer contest.
 
 Mechanically it is otherwise easier than the other builds: M42 and C-mount are rigid, standard, and
 designed to be held by a barrel clamp rather than a PCB. The optical window can be a proper
@@ -495,7 +499,7 @@ In order, and the first one is free.
 | Host | Pi Zero 2 W | SBC or MCU | SBC only | SBC only, **USB 3.0 required** |
 | Idle floor | ~1.5 W | ~30 µA in tier C | ~2 W | ~2 W |
 | Shooting power | ~1.1 W | ~2.5 W | ~4.5 W | **~4.0 W** |
-| Pocketable | yes | yes | **no** | **yes** |
+| Size | pocket | pocket | bag | pocket — *no longer a deciding factor* |
 | Driver | open | open (UVC) | **closed binary** | **open standard** |
 | Sourceable today | **no** | yes | yes | yes |
 
