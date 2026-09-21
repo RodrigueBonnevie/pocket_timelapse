@@ -2157,6 +2157,43 @@ Prove them by running a session to empty.
 
 ---
 
+## Verdict — this architecture cannot do the job (2026-09-21)
+
+Phase 0 is complete and the answer is no. Not "no with this module": **no with this architecture.**
+
+**Two independent limits, each measured, each fatal on its own.**
+
+**Exposure range.** The B0587 delivers 7.17 stops of shutter against a sunset's measured 13.01, so
+53 % of a real session sat pinned at one end or the other. That specific cap was investigated
+exhaustively (see *Investigation closed*) and is not a setting anyone missed. A different UVC module
+could fix it — ToupTek's C2CMOS publishes 14.3 stops — so this limit alone would not close the path.
+
+**Bit depth, which does close it.** The delivered dynamic range measured **8.9 stops from a 13.4-stop
+sensor**, and in a correctly exposed frame **31 % of the image occupied four code values** while the
+top of the container sat empty. That is not this module's failing; it follows from the formats a
+tuned-ISP UVC camera uses.
+
+> **UVC is not limited to 8 bits — MJPEG and YUY2 are.** UVC can carry 10-, 12- and 16-bit formats,
+> but only as raw Bayer. So a UVC camera that gives more bits gives up the in-camera ISP, the
+> compression, and the whole premise of Decision 1 — it is a machine-vision camera wearing a
+> different protocol, and it lands back in tier B with a Linux host and a demosaic to write.
+
+**Which makes the trap structural.** Decision 1 bought the ISP tuning, and the price was the product
+category: a camera whose ISP somebody else tuned emits 8-bit finished frames and keeps its sensor
+registers to itself. **Both of this document's fatal limits are consequences of that one choice**,
+and no module selection escapes them together.
+
+**Not wasted.** The measurement tooling in [`phase0/`](phase0/), the qualification protocol in
+[EXPERIMENTS.md](EXPERIMENTS.md) and the option survey in [CAMERAS.md](CAMERAS.md) all outlive the
+architecture — and the sunset `frames.csv` is now a permanent regression fixture for any future
+exposure ramp. The €90 module bought the knowledge that the €800 one would not have worked either.
+
+**Where the project goes:** [ASTRO-BUILD.md](ASTRO-BUILD.md) and
+[CAMERA-BUILD.md](CAMERA-BUILD.md), both of which deliver 12- or 14-bit raw and an exposure range
+wider than the subject.
+
+---
+
 ## Relationship to the Pi build
 
 [PI-BUILD.md](PI-BUILD.md) solves the same problem with a Raspberry Pi and its own tuned ISP. It is
