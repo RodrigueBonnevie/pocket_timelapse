@@ -51,10 +51,21 @@ means a good result on the 450D will not flatter the eventual camera.
 
 Three questions, in order. Any "no" changes the design.
 
-1. **Free, tonight:** switch the camera on, pull the battery, put it back. Does it return ready to
-   shoot, or does it need the switch cycled? Not identical to a DC coupler — a genuine coupler
-   identifies itself differently, which is exactly why originals behave better — but a failure here
-   is an early warning.
+1. **Free, tonight — done 2026-09-21: the 450D passes.** Switched on, battery pulled, battery
+   reinserted, and it **comes back on without touching the switch**. That is the behaviour the whole
+   architecture needs, confirmed on real hardware rather than assumed.
+
+   **What it does not prove.** Nothing about Panasonic — different firmware, different vendor, and
+   this has to be re-run on the GX7 before committing. Nothing about whether it comes back *ready to
+   shoot* as opposed to merely powered. And nothing about the coupler path specifically, though the
+   coupler should behave *better*: an original identifies itself as a coupler rather than
+   impersonating a battery, which is why cameras power-cycle cleanly on them.
+
+   **Three follow-ups, still free:**
+   - Pull, reinsert, and immediately press the shutter. **How long until it actually fires?**
+   - Does it keep its settings — mode, ISO, drive, focus — across the power loss?
+   - Pull the battery **during a write to the card**, then check the card mounts clean. This is the
+     50-power-cuts test from [PI-BUILD.md](PI-BUILD.md), and it decides the shutdown rule below.
 2. **With a DR-E5 / ACK-E5 coupler (~€20):** cut and restore the rail with the switch left on.
    **Does it boot ready to shoot?** This is the highest-risk unknown in the architecture.
 3. **With an optocoupler on the 2.5 mm jack (~€5):** does a GPIO pulse fire the shutter reliably,
@@ -154,6 +165,17 @@ Wire **both** even with manual focus and manual exposure: the half-press is what
 meter, and it costs one optocoupler. Optical isolation matters here — the camera's trigger contacts
 should share no ground path with the pack.
 
+### Never cut the rail during a write
+
+The MCU cuts power at the end of a session, and a raw file is still being written for seconds after
+the shutter closes — roughly 15 MB on the 450D, 20 MB on the GX7, onto a card that may manage only
+5–10 MB/s.
+
+**Rule: stop triggering, wait, then open the latch.** Five seconds is a cheap margin against a
+corrupted card and a lost session, and the cost is five seconds of idle at the very end of a run.
+Confirm the actual write time per body rather than trusting the estimate — and test surviving a cut
+mid-write anyway, because eventually one will happen.
+
 ### Budget
 
 At ~1.6 W with the camera awake for the whole session (see the sizing in
@@ -216,7 +238,8 @@ applied across the sequence.
 
 | Risk | Mitigation |
 |---|---|
-| **Camera does not boot on rail-up** | Phase 0b question 2. Use a **genuine** coupler — originals identify as couplers rather than impersonating a battery, and power-cycle cleanly |
+| **Camera does not boot on rail-up** | Phase 0b question 2. **The 450D passes the battery-pull version of this test.** Re-run on the GX7 before committing — Panasonic firmware is a different question. Use a **genuine** coupler |
+| Rail cut mid-write corrupts the card | Stop triggering, wait ~5 s, then open the latch. Verify the write time per body |
 | **Raw does not visibly fix the sunset** | Phase 0a, before any spending. This invalidates the pivot, not the parts |
 | Auto ISO ramp flickers frame to frame | Manual aperture removes the aperture component; `deflicker` and a single graded curve handle the rest |
 | Heat in a sealed box | Far less than a mirrorless shooting video, but still untested. Shade, light-coloured case, avoid midday |
