@@ -277,10 +277,41 @@ Level 1 keeps a PTP session open, and the camera stays awake at perhaps 2–4 W.
 | Level 2, Linux + gphoto2 | ~3 W estimated | ~2 W | ~5 W |
 
 Level 1 at ~3 W is comparable to the astro and machine-vision builds — but it buys a 32 MP APS-C
-sensor rather than a 1/1.8″ module. **Level 0 might be dramatically better than anything else in this
-repository**, because it is the only architecture where *both* the host and the camera can sleep.
+sensor rather than a 1/1.8″ module.
 
-That makes the power measurement the single most valuable unknown on this path.
+### Two power cycles, and only one of them applies here
+
+**Between sessions** — the box sits for days or weeks, wakes at a scheduled time, shoots, and shuts
+down. This is the DS3231 + P-FET latch from [PI-BUILD.md](PI-BUILD.md) sitting at microamps in
+between, and it is what makes weeks of standby possible. **Essential, and independent of the
+interval.**
+
+**Between frames** — cutting the camera's rail between individual shots. **Not worth it at the
+intervals this project actually uses.**
+
+| Interval | Stay on (1.6 W) | Cycle (~3 s boot at ~2.5 W) | |
+|---|---|---|---|
+| 2 s | 3.2 J | 7.5 J | **impossible** — boot exceeds the interval |
+| 5 s | 8.0 J | 7.5 J | break-even |
+| 10 s | 16.0 J | 7.5 J | ~2× on paper |
+| 60 s | 96.0 J | 7.5 J | clearly worth it |
+
+The naive break-even is **4.7 s**, but the practical threshold is far higher. A camera needs more
+than three seconds to boot *and* be ready — metering, card mount, autofocus, lens init on a compact.
+Auto-power-off minimums are typically 30 s, so the camera will not help. And 4,320 power cycles in a
+single 12 h session is wear on hardware not designed for it, with a dropped frame every time a boot
+runs slow and no way to know until you get home.
+
+**So at 2–10 s intervals the MCU closes the rail once at the start of the session and opens it once
+at the end.** That is the whole of its power role, and it simplifies everything downstream: the
+power budget is simply idle × session length, the trigger logic is "fire" with no wake-first
+handshake, and there is no boot-timing race to lose frames to.
+
+> **Correction, 2026-09-21.** An earlier version of this section claimed level 0 "might be
+> dramatically better than anything else in this repository, because it is the only architecture
+> where both the host and the camera can sleep". That is true only above ~30 s intervals. At the 2 s
+> interval actually used it is false — the camera cannot sleep at all, and the power budget is the
+> straightforward one already sized below.
 
 ---
 
