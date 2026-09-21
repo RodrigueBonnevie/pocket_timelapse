@@ -67,6 +67,8 @@ MAX_BLOWN = 2.0             # percent of frame allowed above CLIP_LEVEL
 # settling lag, not just one of the two.
 DRAIN = 12
 AWB_CONVERGE = 40           # frames of live AWB before the gains are frozen
+WARMUP = 40                 # frames to discard after STREAMON before trusting any
+RECOVER_STOPS = 1.0         # beyond this the frame is unusable, so stop rationing
 
 
 def find():
@@ -127,7 +129,7 @@ class Ramp:
                 self.stops_per_rung += 0.25 * (observed - self.stops_per_rung)
 
     def update(self, luma, blown):
-        """Returns (error_stops, rungs_moved, pinned)."""
+        """Returns (error_stops, rungs_moved, pinned, recovering)."""
         self._learn(luma)
         err = math.log2(self.target / max(luma, 0.5))
         if blown > self.max_blown:
@@ -139,15 +141,21 @@ class Ramp:
         pinned = (err > DEADBAND and at_top) or (err < -DEADBAND and at_bottom)
 
         moved = 0
+        recovering = abs(err) > RECOVER_STOPS
         if abs(err) > DEADBAND and not pinned:
-            want = max(-STEP_LIMIT, min(STEP_LIMIT, err))
+            # The per-frame cap exists to stop visible steps *between good
+            # frames*. Once the error is this large the frames are unusable
+            # anyway, and rationing the correction to 1/6 stop just records
+            # dozens more of them - a 7-stop error would take 43 frames.
+            want = err if recovering else max(-STEP_LIMIT, min(STEP_LIMIT, err))
             # Round, and honour a rounded-down zero. Forcing a minimum move of
             # one rung instead makes the loop hunt forever whenever the error
             # sits below half a rung: it overshoots, reverses, overshoots back.
             # A rung of gain is ~0.05 stops, so that hunting is a visible
             # per-frame flicker - the exact artefact this ramp exists to avoid.
             n = int(round(want / max(self.stops_per_rung, 1e-3)))
-            n = max(-MAX_RUNGS, min(MAX_RUNGS, n))
+            lim = len(self.ladder) if recovering else MAX_RUNGS
+            n = max(-lim, min(lim, n))
             if n:
                 target_i = max(0, min(len(self.ladder) - 1, self.i + n))
                 self._prev = (self.i, luma)
@@ -155,7 +163,7 @@ class Ramp:
                 self.i = target_i
         if not moved:
             self._prev = None        # nothing moved, so nothing to learn from
-        return err, moved, pinned
+        return err, moved, pinned, recovering
 
 
 def measure(jpeg):
@@ -187,6 +195,12 @@ def acquire(cam, ramp, target, max_blown):
     Brightness is monotonic along the ladder, so bisect it instead: about seven
     probes to place the exposure, none of them recorded, no step limit.
     """
+    # Bisection trusts every probe. A frame taken before the pipeline has
+    # settled is not trustworthy, and a single bad probe sends the search to
+    # the wrong end of the ladder and stays there.
+    for _ in range(WARMUP):
+        cam.grab()
+
     lo, hi, probes = 0, len(ramp.ladder) - 1, 0
     while lo < hi:
         mid = (lo + hi + 1) // 2
@@ -202,9 +216,21 @@ def acquire(cam, ramp, target, max_blown):
         else:
             hi = mid - 1
     ramp.i = lo
-    exp, gain = ramp.setting
-    cam.set(v4l2.CID_EXPOSURE_ABSOLUTE, exp)
-    cam.set(v4l2.CID_GAIN, gain)
+
+    # Verify, because bisection also assumes the ladder's brightness is
+    # monotonic in practice and not merely in principle. Walk down until the
+    # answer actually holds - geometrically, so a gross error costs few probes.
+    for _ in range(24):
+        exp, gain = ramp.setting
+        cam.set(v4l2.CID_EXPOSURE_ABSOLUTE, exp)
+        cam.set(v4l2.CID_GAIN, gain)
+        for _ in range(DRAIN):
+            frame = cam.grab()
+        probes += 1
+        luma, blown, *_ = measure(frame)
+        if (luma <= target and blown <= max_blown) or ramp.i == 0:
+            break
+        ramp.i = max(0, ramp.i - max(1, ramp.i // 6))
     return probes
 
 
@@ -373,7 +399,7 @@ def main():
                 path = out / f"{n:06d}.jpg"
                 write_frame(path, frame)
 
-                err, moved, pinned = ramp.update(luma, blown)
+                err, moved, pinned, recovering = ramp.update(luma, blown)
                 if pinned:
                     pinned_frames += 1
                     worst_deficit = max(worst_deficit, abs(err))
@@ -392,7 +418,7 @@ def main():
                 csv.flush()
                 os.fsync(csv.fileno())
 
-                mark = "  PINNED" if pinned else ""
+                mark = "  PINNED" if pinned else ("  recovering" if recovering else "")
                 if exp < COARSE_BELOW and not mark:
                     mark = "  coarse"
                 print(f"  {n:>5}  {datetime.fromtimestamp(wall):%H:%M:%S}  "

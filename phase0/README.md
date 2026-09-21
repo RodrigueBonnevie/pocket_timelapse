@@ -227,6 +227,37 @@ and lets highlights override the mean when that exceeds `--max-blown`
 legitimately near-white; for a sunset try 5, and tune from the `blown_pct`
 column in `frames.csv`.
 
+## A trap: the bisection can land seven stops out (fixed 2026-09-21)
+
+**Symptom:** the focus preview looks correctly exposed, then the timelapse
+starts and every frame is blown.
+
+**Cause:** `acquire()` bisects the ladder, and bisection trusts every probe it
+takes. It was running within twelve frames of `STREAMON`, before the pipeline
+had settled, so an early probe returned a bogus reading, the predicate said
+"go brighter", and the search committed to the wrong half of the ladder and
+stayed there. Reproduced against the camera: it chose **rung 53, exposure 133,
+in a scene whose correct setting was rung 0, exposure 1** — seven stops out,
+100 % of the frame blown.
+
+The per-frame step cap then made it much worse. At ≤1/6 stop per frame a
+seven-stop error needs **43 frames to unwind**, and every one of them is
+written to the sequence.
+
+**Two fixes.** `acquire()` now discards `WARMUP` frames after `STREAMON` before
+any probe, and **verifies its answer** afterwards — measuring at the chosen rung
+and walking down geometrically if the predicate does not actually hold, so a
+single bad probe can no longer strand the search. And `Ramp.update()` gains a
+**recovery mode**: past one stop of error the per-frame cap is bypassed
+entirely. That cap exists to prevent visible steps *between good frames*; when
+the frames are unusable anyway, rationing the correction only records more of
+them. Recovery frames are marked in the log.
+
+**If you have a blown sequence, `frames.csv` says which problem it was.** A high
+`rung` with high `blown_pct` is the acquisition bug. `rung` 0 with `pinned` 1 is
+the exposure floor instead — the camera is simply too sensitive for the light
+and wants an ND filter, which is a hardware limit rather than a bug.
+
 ## Shooting a sunset
 
 ```bash
