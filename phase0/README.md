@@ -173,10 +173,13 @@ frame.
 | **Total** | **4.91 stops** |
 | A sunset spans | **~10 stops** |
 
-Eliminated as explanations: the frame period (a 200 ms frame at 5 fps still
-caps at 14.4 ms), `Backlight Compensation` a.k.a. "Ultra Low Light Mode"
-(0..2 here, all three plateau), and `Exposure, Dynamic Framerate` (brightens
-~2.7×, extends nothing). 14.4 ms ÷ 2160 lines ≈ 6.7 µs/line — one sensor
+Eliminated as explanations: **all 15 advertised modes** (the ceiling is only
+ever 7.2 or 14.4 ms, and 4K @ 25 fps is joint-best — so the build already uses
+the best mode there is), **`Power Line Frequency`** in all three settings,
+`Backlight Compensation` a.k.a. "Ultra Low Light Mode" (0..2 here, all three
+plateau), and `Exposure, Dynamic Framerate` (brightens ~2.7×, extends
+nothing). Also closed: the camera declares **no UVC still-image mode**
+(`bStillCaptureMethod = 0`) and its second video node is **metadata only**. 14.4 ms ÷ 2160 lines ≈ 6.7 µs/line — one sensor
 readout. The cap is the sensor's internal frame length, which never changes
 because **USB 2.0 bandwidth**, not the sensor, is what holds this camera at
 25 fps.

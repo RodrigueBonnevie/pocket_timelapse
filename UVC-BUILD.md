@@ -1197,12 +1197,17 @@ gain at all.
   So the firmware accepts the full value and then saturates when deriving the sensor timing from it.
   That is consistent with the cap being one sensor readout, and it means there is no "accept a bigger
   number" trick to find: the number is already accepted.
-- **`Power Line Frequency` remains untested.** Anti-flicker modes often constrain exposure to
-  multiples of the mains period, and this control had never been tried. The test needs a lit scene;
-  the camera was pointed at an unlit one (luma 4.3 at maximum settings) so the image-based sweep
-  returned noise, and the register proxy above still jitters past ~144, giving ragged results that
-  cannot separate the three settings. **All three did respond consistently out to ~132–144**, which
-  is consistent with no effect, but it is not established. Five minutes with a lamp would settle it.
+- **`Power Line Frequency` has no effect.** Anti-flicker modes often constrain exposure to multiples
+  of the mains period, and this was the last untested control. Re-run in a properly lit scene, all
+  three settings cap at **exactly 144**:
+
+  | Setting | Ceiling | Plateau luma |
+  |---|---|---|
+  | 60 Hz | **144 = 14.4 ms** | 128 |
+  | 50 Hz | **144 = 14.4 ms** | 125 |
+  | Disabled | **144 = 14.4 ms** | 121 |
+
+  The plateau differs by a few percent of tone, not by any change in range. Eliminated.
 
 > **A correction worth recording.** A first pass at the register diff used only two snapshots to
 > filter noise and produced a confident-looking list of "registers that respond below the cap but not
@@ -1213,9 +1218,17 @@ gain at all.
 
 **Three explanations were tested and eliminated:**
 
-- **Not the frame period.** The only slow mode the device offers is YUYV 320×320 at 5 fps — a
-  200 ms frame period. The ceiling moved from 7.2 ms to 14.4 ms and stopped. `VIDIOC_S_PARM` does
-  work, but only if set before streaming, and 4K advertises 25 fps alone so there is nothing to pick.
+- **Not the frame period, and not any other mode.** **All 15 advertised modes were surveyed** in a
+  lit scene, and the ceiling takes exactly two values and no others:
+
+  | Ceiling | Modes |
+  |---|---|
+  | **14.4 ms** | **MJPG 3840×2160 @ 25 fps** · YUYV 320×320 @ 5 fps |
+  | 7.2 ms | the other thirteen — every 30 fps and 60 fps mode, both formats, every resolution |
+
+  Note it does not scale with frame rate: 5 fps and 25 fps both give 14.4 ms, while 30 fps and
+  60 fps both give 7.2 ms. It looks like two sensor timing configurations rather than a computed
+  frame period. **The build already uses the joint-best mode.** There is nothing to switch to.
 - **Not a missing low-light mode.** Arducam's "Ultra Low Light Mode" is `Backlight Compensation`,
   which on this unit is 0..2 rather than the documented 0..1. All three values plateau at 14.4 ms.
 - **Not `Exposure, Dynamic Framerate`.** Enabling it brightens the image ~2.7× and does not extend
