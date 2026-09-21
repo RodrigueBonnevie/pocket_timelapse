@@ -57,7 +57,7 @@ STEP_LIMIT = 1 / 6          # max stops of correction per frame; more than this 
 # At 1/12 it tracks the same speed with half the quantisation.
 RUNG_STOPS = 1 / 12
 DEADBAND = 0.02             # stops; below this, leave it alone rather than hunt
-MAX_RUNGS = 6               # a bound on a bad stops-per-rung estimate, not on the ramp
+GAIN_STOPS_AT_MAX = 1.10    # measured on the B0587: gain 0 -> 100 buys this much
 TARGET_LUMA = 100.0
 CLIP_LEVEL = 250            # counted as blown
 MAX_BLOWN = 2.0             # percent of frame allowed above CLIP_LEVEL
@@ -76,6 +76,21 @@ def find():
         if "Arducam" in link.name:
             return str(link)
     sys.exit("No Arducam under /dev/v4l/by-id - pass --device explicitly.")
+
+
+def ladder_stops(ladder):
+    """Brightness of each rung in stops above the darkest, derived from the
+    ladder itself rather than learned from the image.
+
+    The local spacing varies by 30x across the ladder - a full stop at the
+    bottom, where the exposure control is integer-quantised, against 0.03 near
+    the top - so any single average is wrong nearly everywhere. Learning it
+    from successive frames is worse still: during a sunset the scene moves
+    between those frames, so the measurement attributes the scene's change to
+    the ramp's own step and underestimates it."""
+    e0 = ladder[0][0]
+    k = (2 ** GAIN_STOPS_AT_MAX - 1) / GAIN_MAX
+    return [math.log2(e / e0) + math.log2(1 + k * g) for e, g in ladder]
 
 
 def build_ladder(shutter_min, shutter_ceiling, gain_max):
@@ -108,29 +123,24 @@ class Ramp:
 
     def __init__(self, ladder, target, start, max_blown=MAX_BLOWN):
         self.ladder = ladder
+        self.stops = ladder_stops(ladder)
         self.target = target
         self.max_blown = max_blown
         self.i = start
-        self.stops_per_rung = RUNG_STOPS
-        self._prev = None            # (index that luma belongs to, that luma)
 
     @property
     def setting(self):
         return self.ladder[self.i]
 
-    def _learn(self, luma):
-        if not self._prev:
-            return
-        prev_i, prev_luma = self._prev
-        di = self.i - prev_i
-        if di and prev_luma > 0.5 and luma > 0.5:
-            observed = abs(math.log2(luma / prev_luma) / di)
-            if 0.002 < observed < 1.0:
-                self.stops_per_rung += 0.25 * (observed - self.stops_per_rung)
+    def _span(self, i, d):
+        """Stops between rung i and its neighbour in direction d."""
+        j = i + d
+        if 0 <= j < len(self.stops):
+            return abs(self.stops[j] - self.stops[i])
+        return float("inf")
 
     def update(self, luma, blown):
         """Returns (error_stops, rungs_moved, pinned, recovering)."""
-        self._learn(luma)
         err = math.log2(self.target / max(luma, 0.5))
         if blown > self.max_blown:
             # Metering the mean exposes for the ground and burns the sky off the
@@ -148,21 +158,27 @@ class Ramp:
             # anyway, and rationing the correction to 1/6 stop just records
             # dozens more of them - a 7-stop error would take 43 frames.
             want = err if recovering else max(-STEP_LIMIT, min(STEP_LIMIT, err))
-            # Round, and honour a rounded-down zero. Forcing a minimum move of
-            # one rung instead makes the loop hunt forever whenever the error
-            # sits below half a rung: it overshoots, reverses, overshoots back.
-            # A rung of gain is ~0.05 stops, so that hunting is a visible
-            # per-frame flicker - the exact artefact this ramp exists to avoid.
-            n = int(round(want / max(self.stops_per_rung, 1e-3)))
-            lim = len(self.ladder) if recovering else MAX_RUNGS
-            n = max(-lim, min(lim, n))
-            if n:
-                target_i = max(0, min(len(self.ladder) - 1, self.i + n))
-                self._prev = (self.i, luma)
-                moved = target_i - self.i
-                self.i = target_i
-        if not moved:
-            self._prev = None        # nothing moved, so nothing to learn from
+            goal = self.stops[self.i] + want
+            j = min(range(len(self.stops)), key=lambda k: abs(self.stops[k] - goal))
+            if j == self.i:
+                # One rung is coarser than the correction allowed this frame.
+                # Moving anyway beats freezing: left alone the error grows until
+                # it trips the recovery threshold and is then paid off in a
+                # single multi-rung jump - a stall followed by a visible step,
+                # which is worse than taking the step early and small.
+                d = 1 if want > 0 else -1
+                if abs(err) > self._span(self.i, d) / 2:
+                    j = max(0, min(len(self.ladder) - 1, self.i + d))
+            if not recovering:
+                # One rung per frame while tracking. A sunset moves about
+                # 0.004 stops between frames at a 2 s interval and the finest
+                # rung is 0.078, so the ramp only needs to step once every
+                # ~18 frames; more than one rung at a time is never tracking,
+                # it is paying off an error that should not have accumulated,
+                # and it is what a viewer sees as a jump.
+                j = max(self.i - 1, min(self.i + 1, j))
+            moved = j - self.i
+            self.i = j
         return err, moved, pinned, recovering
 
 
@@ -393,7 +409,11 @@ def main():
                     stale += 1
                 previous = frame
                 luma, blown, r, g, b = measure(frame)
+                # Capture the rung too, not just the exposure: ramp.update()
+                # below moves it, and logging the post-move rung beside the
+                # pre-move exposure makes the row contradict itself.
                 exp, gain = ramp.setting
+                rung = ramp.i
                 wall = time.time()
 
                 path = out / f"{n:06d}.jpg"
@@ -412,7 +432,7 @@ def main():
                 last_luma = luma
 
                 csv.write(f"{n},{wall:.3f},{datetime.fromtimestamp(wall).isoformat()},"
-                          f"{exp},{gain},{ramp.i},{luma:.3f},{blown:.3f},{err:+.4f},"
+                          f"{exp},{gain},{rung},{luma:.3f},{blown:.3f},{err:+.4f},"
                           f"{moved},{int(pinned)},{len(frame)},{r:.2f},{g:.2f},"
                           f"{b:.2f}\n")
                 csv.flush()

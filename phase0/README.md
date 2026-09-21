@@ -261,6 +261,65 @@ them. Recovery frames are marked in the log.
 the exposure floor instead — the camera is simply too sensitive for the light
 and wants an ND filter, which is a hardware limit rather than a bug.
 
+## What a real sunset showed (2026-09-21, 3073 frames over 102 min)
+
+The first full sunset produced visible stepping and flicker. `frames.csv`
+explained all of it.
+
+**The scene spanned +13.01 stops in 102 minutes — 7.7 stops/hour. The ladder
+spans 8.27.** So **53 % of frames were outside the camera's range entirely**:
+17 minutes pinned at the floor at the start, 36 minutes pinned at the ceiling
+at the end. No control loop can fix that; it is the hardware.
+
+### The ramp was not slow — it was frozen
+
+At a 2 s interval the scene moves **0.0043 stops per frame** while the ramp is
+allowed 0.167. It had a **39× speed margin** and still fell a full stop behind,
+because it was not moving at all:
+
+```
+   1200    4    0    3   58.81   moved 0   err +0.766
+   ...30 consecutive frames, exposure unchanged...
+   1229    4    0    3   53.24   moved 0   err +0.910
+```
+
+One stall ran **381 frames**. Each ended at `err = +1.002` — exactly
+`RECOVER_STOPS` — with a **+3 rung jump**. Freeze, drift, jump, freeze. That is
+the "slow then large steps", and the same thing is the flicker.
+
+**Cause:** the ramp divided the wanted correction by a single *learned*
+stops-per-rung. But the ladder's local spacing runs from **1.000 stop at rung 0
+to 0.015 at rung 105 — a 67× range** — so one global figure is wrong nearly
+everywhere, and learning it from successive frames is worse, because during a
+sunset the scene moves between those frames and the measurement credits the
+ramp for it. When the estimate exceeded twice the per-frame step limit,
+`round(want / spr)` returned 0 and the loop could never move again.
+
+### The fix, replayed against this very session
+
+The ladder's brightness is now computed **from the ladder**, not learned, and
+the ramp moves at most one rung per frame while tracking.
+
+| | shipped | fixed |
+|---|---|---|
+| tracking \|error\|, median | 0.610 | **0.103 stops** |
+| max | 1.456 | **0.501** |
+| median step | **1.000 stop** | **0.078 stops** |
+| steps > 0.2 stops | **314** | **6** |
+
+A 0.078-stop step is a 5 % brightness change — near invisible, and well within
+what `ffmpeg`'s deflicker cleans up. The remaining 1-stop steps are at rungs
+0–1, where the exposure control is integer-quantised; **only an ND filter fixes
+those.**
+
+### And a logging bug worth knowing about
+
+`exposure` and `gain` were captured *before* `ramp.update()` while `rung` was
+written *after*, so any row where a move happened contradicted itself. It
+corrupted the first pass of this analysis before it was spotted. Fixed —
+but **`rung` in sessions recorded before 2026-09-21 is unreliable; use
+`exposure` and `gain`.**
+
 ## Shooting a sunset
 
 ```bash
