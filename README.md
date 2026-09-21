@@ -10,7 +10,7 @@ Construction has not started; the architecture is back under review.
 
 ## Documents
 
-**Four architectures**, at different stages of validation, plus the camera survey, two background
+**Five architectures**, at different stages of validation, plus the camera survey, two background
 papers and the Phase 0 results.
 
 | | |
@@ -19,6 +19,7 @@ papers and the Phase 0 results.
 | **[UVC-BUILD.md](UVC-BUILD.md)** | **Architecture 2 — UVC camera. Closed 2026-09-21: it cannot do the job.** Buys the ISP tuning in the camera, so the host needn't be a Pi. Sources today, better sensor, scales to multi-week runs — with four measurements standing between it and a trusted BOM |
 | **[ASTRO-BUILD.md](ASTRO-BUILD.md)** | **Architecture 3 — give the ISP up on purpose.** Own the exposure register instead of buying tuning: an astronomy camera (~26 stops against 4.91) or a board-level machine-vision camera. Removes the Raspberry Pi dependency entirely. Costs twice the power and colour earned in post. An exploration, not a recommendation |
 | **[CAMERA-BUILD.md](CAMERA-BUILD.md)** | **Architecture 4 — use an actual camera.** A €150 used Panasonic GX7 with a manual lens, running its own intervalometer and writing to its own SD card. Nearly three stops more sensor, ~17 stops of exposure range, and **the only software left to write is the timer.** Heat and theft are the risks |
+| **[MFT-BUILD.md](MFT-BUILD.md)** | **Architecture 5 — the decided path.** A used Panasonic GX7 runs its own exposure and writes to its own card; an MCU switches power on a schedule and presses the shutter. Includes a phase 0 that prototypes the whole thing on a Canon 450D already owned, for about €25 |
 | **[CAMERAS.md](CAMERAS.md)** | **Every camera considered, in one table.** Thirty-odd modules across ten sensors, grouped by whether they keep the low-power MCU host; sensors ranked by light per pixel; and a status column saying which claims are measured, which are vendor-stated and which are guesses |
 | **[EXPERIMENTS.md](EXPERIMENTS.md)** | **The camera qualification protocol.** Nine experiments with method, pass criteria and the B0587's measured result as the baseline — so a candidate camera can be judged in an evening rather than after buying it. Plus the ways this project fooled itself along the way |
 | **[phase0/README.md](phase0/README.md)** | **The measurements**, the tooling that took them, and the traps found along the way |

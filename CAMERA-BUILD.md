@@ -6,6 +6,9 @@ exposure range rather than sensor quality.
 
 The premise: **stop trying to find a camera module that behaves like a camera, and use a camera.**
 
+> **This document is the survey. [MFT-BUILD.md](MFT-BUILD.md) is the decided machine**,
+> with a phase 0 that prototypes it on a Canon 450D already owned.
+
 ## The build, in one paragraph
 
 **A used Panasonic GX7, a cheap manual wide lens, a dummy battery, two 18650s and a timer.** The
