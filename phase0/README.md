@@ -47,11 +47,22 @@ the middle half), and re-lock the thread afterwards — a box that travels in a
 pocket will drift.
 
 `focus_preview.py` serves the camera's own MJPEG frames to a browser at
-`http://localhost:8080` with the sharpness number beside them, so you can see
-*what* is sharp rather than only *how* sharp. Exposure and white balance are
-left automatic there so it stays usable at dusk; that is the opposite of every
-other script here, and deliberate. It holds the camera open, so stop it before
-running a capture.
+`http://localhost:8080`, so you can see *what* is sharp rather than only *how*
+sharp. Exposure and white balance are left automatic there so it stays usable
+at dusk; that is the opposite of every other script here, and deliberate. It
+holds the camera open, so stop it before running a capture.
+
+**Use the loupe.** Beside the live view is a magnified crop sampled at **one
+source pixel per screen pixel**, which is the part that actually lets you find
+focus — a 4K frame fitted into a browser window is displayed at roughly quarter
+scale, and that throws away exactly the detail separating sharp from nearly
+sharp. Move it to a **corner** to check for tilt or field curvature, which a
+centre-only view hides completely. 2× and 4× step beyond 1:1 with nearest-
+neighbour scaling, so pixels stay square rather than being blurred.
+
+The sharpness number is computed **on the loupe pixels**, in the browser, so it
+follows wherever the loupe is pointed and reads full-resolution detail. Changing
+the region or the zoom resets the peak, because each region has its own scale.
 
 ## Setting up the shot
 
