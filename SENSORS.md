@@ -300,6 +300,44 @@ exposures *simultaneously* from different pixels of each quad rather than sequen
 artefacts. Still tone-mapped on the way out, and probably not reachable through an astronomy SDK,
 but it is the only mechanism found in this project that attacks in-frame range honestly.
 
+### Confirmed against a real sunset (3073 frames, 2026-09-21)
+
+The delivered-DR measurement above predicts starved shadows. The sunset frames show exactly that.
+
+**Frame 1200 — correctly exposed, not pinned, nothing clipped at the top:**
+
+| Level | Share |
+|---|---|
+| 0 | 6.56 % |
+| 1 | 7.87 % |
+| 2 | 10.31 % |
+| 3 | 6.64 % |
+| 4 | 0.82 % |
+| 250–255 | **0.000 %** |
+
+**31 % of the image occupies four code values**, while the top of the container sits completely
+empty. In 12-bit those four levels would be 64; in 14-bit, 256. This is bit-depth starvation in its
+plainest form — the detail is present but quantised to almost nothing.
+
+**Frame 2600 — pinned at the ceiling** — is worse and differently broken: peaks at levels 0, 3, 5
+and 8 with gaps between them. That comb is **posterisation from gain amplifying a nearly empty
+signal**, which is the exposure range running out rather than the container.
+
+### And it is not the tone curve — that was tested
+
+The obvious suspicion is that Arducam's tone curve is wasting the container. It is not. Sweeping
+`Gamma` (72–500) and `Contrast` (0–64) at a fixed exposure redistributes code values but recovers
+nothing: the 1.54 % of pixels clipped to 255 at the default contrast span just **184–192 at contrast
+0 — 0.06 stops**, with the 10th, 50th and 90th percentiles all at 188. Those pixels are **saturated,
+not compressed**, so lowering contrast merely maps saturation to a lower number.
+
+**One lever is real, though.** Frame 1200 has nothing above level 233, so roughly a stop of the
+container is unused at the top while the shadows fight over four levels. Raising `Gamma` from 100
+toward 150–200 moves the shadow floor up (measured: p1 goes 3 → 10 → 24 for gamma 100 → 150 → 250)
+with highlight clipping essentially unchanged. **It is free code space for the shadows whenever the
+highlights are not already at the ceiling** — scene-dependent, worth testing, and no substitute for
+more bits.
+
 ### A caution on comparing these numbers
 
 Engineering DR (full well ÷ read noise) is **not** the photographic DR that camera reviews publish,
