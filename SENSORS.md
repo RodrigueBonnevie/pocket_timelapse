@@ -227,3 +227,84 @@ enclosure is the only thing that has to be redesigned.
 - [Raspberry Pi Camera Algorithm and Tuning Guide](https://datasheets.raspberrypi.com/camera/raspberry-pi-camera-guide.pdf)
 - [libcamera rkisp1 — per-sensor tuning file support](https://patchwork.libcamera.org/patch/16001/)
 - [Rockchip ISP1 open source documentation](https://opensource.rock-chips.com/wiki_Rockchip-isp1)
+
+---
+
+## Dynamic range — a different axis, and the one that limits the picture
+
+Everything in [UVC-BUILD.md](UVC-BUILD.md) about the 14.4 ms cap concerns **exposure range**: how far
+the camera can be moved between frames. **Dynamic range** is unrelated — the ratio between the
+brightest and darkest tone captured *within a single frame*. A sunset punishes both, and the second
+is the one you cannot ramp your way out of.
+
+### What the sensors can do
+
+Engineering dynamic range is full-well capacity divided by read noise:
+
+| Sensor | Full well | Read noise | Engineering DR |
+|---|---|---|---|
+| **IMX294** (4/3″, 4.63 µm) | 63,700 e⁻ | 1.2 e⁻ | 94.5 dB = **15.7 stops** |
+| **IMX585** (1/1.2″, 2.9 µm) | 40,000 e⁻ | 0.8 e⁻ | 94.0 dB = **15.6 stops** |
+| **IMX678** (1/1.8″, 2.0 µm) | ~22,000 e⁻ | ~2.1 e⁻ | 80.4 dB = **13.4 stops** |
+| IMX415 (1/2.8″, 1.45 µm) | ~15,000 e⁻ | ~3.8 e⁻ | 71.9 dB = **11.9 stops** |
+
+Sony also quote **83 dB for the IMX678 with "Clear HDR"**, and STARVIS 2 as exceeding STARVIS by 8 dB
+at the same pixel size in a single exposure.
+
+**So the IMX678 is not a bad sensor for dynamic range.** 13.4 stops is a respectable number.
+
+### What the B0587 actually delivers — measured, 2026-09-21
+
+Twelve frames of a static lit scene, pixels point-sampled at full resolution so noise survives, then
+per-pixel temporal standard deviation binned by signal level:
+
+| Signal level | σ (DN) | SNR |
+|---|---|---|
+| 0–15 | **0.54** | 23.2 dB |
+| 32–47 | 2.51 | 24.1 dB |
+| 96–111 | 0.93 | 41.0 dB |
+| 224–239 | 1.41 | 44.3 dB |
+| 240–255 | 0.13 | *clipped — no noise because saturated* |
+
+**Delivered dynamic range: 20·log₁₀(255 / 0.54) = 53.5 dB ≈ 8.9 stops.** At gain 50 it falls to
+8.5 stops.
+
+**And 8.9 is an optimistic ceiling**, for two reasons visible in that table. JPEG compression smooths
+noise in flat dark areas, so the 0.54 DN floor flatters the camera. And σ *falls* from 2.51 in the
+shadows to 0.93 in the midtones, which shot noise cannot do — that is the ISP denoising unevenly by
+level. The delivered figure is a property of Arducam's processing as much as of the sensor.
+
+### The conclusion: the sensor is not the problem, the output format is
+
+**A ~13.4-stop sensor delivering ~8.9 stops means roughly four and a half stops are discarded on the
+way out**, because the camera emits **8-bit JPEG**. Eight bits is 256 levels; that is the container,
+and no sensor improvement can widen it.
+
+This is why a consumer camera feels like a different class. Its advantage is only partly the larger
+pixels — 3.2 µm against 2.0 µm is about **+1.4 stops** of full well — and mostly that it writes
+**14-bit raw**, so the range the sensor captured is still there to grade.
+
+### So is HDR what we want? No — more bits are
+
+HDR is tempting because in-frame contrast is exactly the failure. But think about where it lands:
+multi-exposure HDR increases what the *sensor* captures, and that still has to come out through the
+same 8 bits. The result is a **tone-mapped** rendering — the flat, grey, slightly unreal look of
+surveillance footage — with the range compressed in permanently and no latitude to re-grade it.
+
+**HDR treats the symptom. The disease is 8-bit output.** What a sunset wants is 12- or 14-bit data
+with the tone curve applied later, on a laptop, by choice. That is precisely what
+[CAMERA-BUILD.md](CAMERA-BUILD.md) buys and what no UVC module in [CAMERAS.md](CAMERAS.md) offers.
+
+The exception worth noting is the **IMX294's Quad Bayer HDR**, which takes its short and long
+exposures *simultaneously* from different pixels of each quad rather than sequentially — no motion
+artefacts. Still tone-mapped on the way out, and probably not reachable through an astronomy SDK,
+but it is the only mechanism found in this project that attacks in-frame range honestly.
+
+### A caution on comparing these numbers
+
+Engineering DR (full well ÷ read noise) is **not** the photographic DR that camera reviews publish,
+which demands a usable SNR at the shadow end and accounts for the whole pipeline. Engineering DR
+always flatters. So the IMX678's 13.4 stops should not be read against a review figure for the R7 —
+no measured R7 number is quoted here because none was found from a source worth citing. **The
+measured 8.9 stops above is the honest one**, because it was taken on this camera, through its real
+output path, and that is what lands on the SD card.

@@ -12,6 +12,12 @@ for CSI, [SENSORS.md](SENSORS.md) for what an ISP and its tuning actually are.
 
 ## How to read this
 
+> **Exposure range is not dynamic range.** This document ranks on *exposure range* — how far a camera
+> can be moved between frames. **Dynamic range** is how much of a single frame's contrast survives,
+> and it is limited here by the **8-bit JPEG output**, not by any sensor listed. The B0587 measures
+> **~8.9 delivered stops from a ~13.4-stop sensor**. See the dynamic range section in
+> [SENSORS.md](SENSORS.md), which also explains why HDR is the wrong fix.
+
 The axes, in the order they decide things:
 
 1. **Exposure range.** A sunset spans ~10 stops. The camera already owned manages **4.91**, measured.
