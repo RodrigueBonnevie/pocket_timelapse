@@ -1180,6 +1180,37 @@ exposure gives an identical frame. Nothing errors — which is precisely what ma
 ramp that trusts readback will wind the control to 5000, sit there in the dark, and never reach for
 gain at all.
 
+**Four further avenues were closed on 2026-09-21**, three definitively:
+
+- **UVC still-image capture does not exist on this device.** UVC 1.5 defines a still path separate
+  from the video stream, with its own probe/commit — and vendors sometimes allow longer integration
+  there, since nothing is streaming. The VideoStreaming input header reads
+  **`bStillCaptureMethod = 0`** with **zero `VS_STILL_IMAGE_FRAME` descriptors**, so the camera does
+  not implement it. Closed from the descriptors alone, with no risky USB work.
+- **The second video node is metadata, not video.** `...index1` reports capabilities `0x04a00000`
+  (STREAMING | META_CAPTURE), advertises no formats and exposes no controls. It carries UVC per-frame
+  headers. Closed.
+- **The clamp is in the firmware's arithmetic, not its control handling.** Reading the Sonix ASIC
+  window read-only across three exposures, with a five-read stability filter that kept 3,946 of 4,096
+  registers, splits cleanly in two. **`0x016c/0x016d` stores the commanded value verbatim** — 0x1388
+  for 5000 — as do 40 others, while a *different* 40 track from exposure 1 to 144 and then **freeze**.
+  So the firmware accepts the full value and then saturates when deriving the sensor timing from it.
+  That is consistent with the cap being one sensor readout, and it means there is no "accept a bigger
+  number" trick to find: the number is already accepted.
+- **`Power Line Frequency` remains untested.** Anti-flicker modes often constrain exposure to
+  multiples of the mains period, and this control had never been tried. The test needs a lit scene;
+  the camera was pointed at an unlit one (luma 4.3 at maximum settings) so the image-based sweep
+  returned noise, and the register proxy above still jitters past ~144, giving ragged results that
+  cannot separate the three settings. **All three did respond consistently out to ~132–144**, which
+  is consistent with no effect, but it is not established. Five minutes with a lamp would settle it.
+
+> **A correction worth recording.** A first pass at the register diff used only two snapshots to
+> filter noise and produced a confident-looking list of "registers that respond below the cap but not
+> above". Repeating it showed those registers jitter between consecutive reads at a *fixed* setting.
+> The finding above survives only because the filter was redone with five reads at each of three
+> settings. **150 of 4,096 registers in this window are volatile**, which is more than enough to
+> manufacture a convincing pattern out of nothing.
+
 **Three explanations were tested and eliminated:**
 
 - **Not the frame period.** The only slow mode the device offers is YUYV 320×320 at 5 fps — a
