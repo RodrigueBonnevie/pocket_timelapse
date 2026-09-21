@@ -1180,6 +1180,39 @@ exposure gives an identical frame. Nothing errors — which is precisely what ma
 ramp that trusts readback will wind the control to 5000, sit there in the dark, and never reach for
 gain at all.
 
+#### Investigation closed — everything tried, and the result
+
+**The 14.4 ms cap is not a setting, a mode, or a trick that was missed.** It was investigated
+exhaustively between 2026-09-17 and 2026-09-21 and the record is below so that nobody repeats it.
+
+| Avenue | Method | Result |
+|---|---|---|
+| Longer exposure values | sweep 1–5000 in a lit scene | **ignored above ~144**; accepted and read back verbatim |
+| **All 15 advertised modes** | ceiling measured in each | **only ever 7.2 or 14.4 ms**; 4K @ 25 fps is joint-best |
+| Slower frame rate | `VIDIOC_S_PARM`, down to 5 fps / 200 ms frame | **no change** — 200 ms of frame time, still 14.4 ms |
+| `Exposure, Dynamic Framerate` | both values | +2.7× brightness, **no extra range** |
+| `Backlight Compensation` (Arducam's "Ultra Low Light Mode") | 0, 1, 2 | all three plateau at 144 |
+| **`Power Line Frequency`** | 0, 1, 2 in a lit scene | **all three cap at 144** |
+| Gain | 0–100 | +1.10 stops — a separate axis, not more shutter |
+| Hidden V4L2 controls | `QUERYCTRL` walk with `NEXT_CTRL` | **none** beyond the sixteen listed |
+| **UVC still-image mode** | descriptor parse | **`bStillCaptureMethod = 0`**, no frame descriptors — not implemented |
+| Second video node | enumerate | **metadata only** (`STREAMING \| META_CAPTURE`), no formats, no controls |
+| Vendor extension unit | XU probe, selectors 1–6 | reachable — but it is the *bridge's* ASIC window, not the sensor |
+| Where the clamp sits | register diff, 5-read stability filter | **command stored in full (0x1388); derived timing registers saturate** |
+| Sensor registers over I²C | *not attempted* | behind an undocumented bridge, with a flash selector next door |
+| Firmware replacement | *not attempted* | a vendor question, not a user one |
+
+**Conclusion.** The firmware accepts 500 ms, stores 500 ms, and then saturates when it computes the
+sensor timing — so the limit is arithmetic inside Arducam's firmware, not a locked door with a key
+somewhere. **Two levers remain and both are outside the camera's control interface:** ask Arducam
+whether the firmware can extend the sensor's frame length, or fit an **ND filter** for the bright end.
+
+**Separately, ~3.2 stops were recovered** — not from the camera but from this project's own code. The
+exposure ladder started at 9 instead of the control's minimum of 1, discarding 3.17 stops at exactly
+the end daylight needs. With that fixed the usable range is about **8 stops** (7.17 of shutter plus
+1.10 of gain) rather than the 4.91 first measured. The camera never improved; the software stopped
+wasting what was there.
+
 **Four further avenues were closed on 2026-09-21**, three definitively:
 
 - **UVC still-image capture does not exist on this device.** UVC 1.5 defines a still path separate

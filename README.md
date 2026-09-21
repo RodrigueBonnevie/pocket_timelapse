@@ -54,6 +54,14 @@ the deeper cause is the architecture's own first decision: *a camera whose ISP s
 is a camera whose sensor registers somebody else owns.* Tuned ISPs are sold inside webcams and
 surveillance cameras, and those stream.
 
+**And it is closed.** All 15 advertised modes, every control including `Power Line Frequency`, the
+UVC still-image path, the second video node and the vendor extension unit were all investigated and
+eliminated — see the *Investigation closed* table in [UVC-BUILD.md](UVC-BUILD.md). The firmware
+accepts 500 ms, stores it in full, and saturates when deriving sensor timing, so the limit is
+arithmetic rather than a locked door. About **3.2 stops were recovered** in the process, but from
+this project's own code rather than the camera: the exposure ladder had been starting at 9 instead
+of 1.
+
 **No vendor publishes an exposure range**, which is exactly how this got past selection. Across
 thirty-odd modules, ten sensors and a dozen vendors, **two manufacturers state the figure** — both
 selling into microscopy. The one specification that decides whether the build works is not a
