@@ -1284,6 +1284,15 @@ product tier.** The B0588 (IMX662, USB 3.0) is advertised at up to 12,935,800 µ
 not a bug to be worked around, it is a feature the B0587 does not have. Note the B0588 is 2 MP, so
 it is not a drop-in — it fails the 4K requirement outright.
 
+> **Correction, 2026-09-21: ND does not fix this, and this document has repeatedly implied it does.**
+> The scene measured 13.01 stops against a window of 8.27, so **4.74 stops are unreachable no matter
+> where the window sits** — 37 minutes of a 101-minute sunset. ND translates the window; it does not
+> widen it. The recorded session lost 17 minutes at the bright end and 36 at the dark end; fitting
+> ND3 would cover the bright end and add 23 minutes to the dark one, for the same 37-minute total.
+>
+> **So ND is a framing choice, not a fix** — it selects *which* part of the sunset you keep. And for
+> sunset-into-night it points the wrong way, because the dark end is already the larger loss.
+
 **Status: parked, not resolved.** ~4.9 stops is roughly half a sunset. Whether that is fatal or
 merely limiting is a question about pictures, not numbers, and `phase0/timelapse.py` exists to
 answer it against a real one. If it does prove fatal, the options cheapest-first are: ask Arducam

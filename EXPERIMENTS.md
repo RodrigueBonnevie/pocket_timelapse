@@ -81,8 +81,13 @@ and the percentage of pixels above 250.
 
 **Criterion:** mean luma below target with < 1 % blown. A fixed-aperture lens has no other lever.
 
-**B0587:** **2.3 stops too bright at minimum, 48 % of the frame blown.** Needs ND4–ND8 for daylight,
-ND32–ND64 to also clear the coarse bottom of the ladder.
+**B0587:** **2.3 stops too bright at minimum, 48 % of the frame blown.** ND4–ND8 brings daylight into
+range, ND32–ND64 also clears the coarse bottom of the ladder.
+
+> **But ND buys nothing overall.** It shifts the window without widening it, so the total unreachable
+> range is unchanged — it only chooses which end of the sunset you lose. Treat this experiment as
+> measuring *where* the window sits, and experiment 2 as measuring how wide it is. Only the width
+> matters for whether the camera can do the job.
 
 ---
 
