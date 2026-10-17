@@ -213,6 +213,60 @@ corrupted card and a lost session, and the cost is five seconds of idle at the v
 Confirm the actual write time per body rather than trusting the estimate — and test surviving a cut
 mid-write anyway, because eventually one will happen.
 
+### What the RM-UC1 can and cannot do
+
+It is a cable with Olympus's connector on one end and a **two-stage shutter button** on the other.
+Electrically it is nothing but switches:
+
+| Action | Effect |
+|---|---|
+| Half press | S1 — autofocus and metering |
+| Full press | S2 — shutter |
+| Slide to lock | holds S2 closed, for **Bulb** |
+
+**No settings, no data, no protocol.** That is precisely why gutting one works: the optocouplers
+replace a finger, and nothing has to be understood about the connector.
+
+The lock position is worth noting — in Bulb mode, **how long the MCU holds S2 is the exposure time**,
+so arbitrarily long exposures are reachable with no protocol at all. It only covers the dark end;
+Bulb cannot produce 1/500 s for the start of a sunset.
+
+### Do settings need to be set remotely at all? Probably not
+
+Most of what a timelapse needs is set **once, in the menu, before the session**: aperture-priority,
+an Auto ISO ceiling, a slowest-shutter limit, manual focus, raw, electronic shutter. The camera then
+ramps its own exposure, and **raw records exactly what it chose in EXIF**, so post-processing can
+normalise frame to frame *exactly* rather than statistically.
+
+That last point is the real difference from the UVC build. Flicker there was hard because the output
+was 8-bit JPEG with no latitude. With raw plus per-frame EXIF, deflicker becomes arithmetic.
+
+**So trigger-only is the baseline design, and the whole control interface is two optocouplers.**
+
+### If settings are wanted anyway: Wi-Fi, not USB
+
+The E-M10 Mark II has **built-in Wi-Fi**, and the OI.Share protocol it speaks has been
+reverse-engineered — an HTTP API over the camera's own access point:
+
+| Project | Notes |
+|---|---|
+| [`olympuswifi`](https://olympus-wifi.readthedocs.io/) | Python, documented; `get_commands()` enumerates what a body supports, `get_camprop()` reads properties |
+| [`PYlympus`](https://github.com/programmin1/PYlympus) | minimal example; "type shutter to take picture" |
+| [`MSGEndo/OLYMPUSWIFI`](https://github.com/MSGEndo/OLYMPUSWIFI) | **explicitly tested on E-M10 Mark I, II and III** |
+
+**An ESP32 can join the camera's AP and send HTTP GETs**, which keeps the MCU tier alive, needs no
+cable, and sidesteps the proprietary connector entirely. The camera URL differs by model —
+`http://192.168.0.10` on the Mark III, `http://oishare` on the Mark I — so the Mark II needs
+checking.
+
+Against it: Wi-Fi costs power at both ends, the camera's Wi-Fi mode may time out or disable other
+functions, and none of this is verified on this body yet.
+
+> **The free experiment, and it needs no parts:** connect a laptop to the camera's Wi-Fi,
+> `pip install olympuswifi`, and run `get_commands()`. That lists exactly which properties this body
+> exposes and whether shutter, ISO and release are among them. It settles the question in ten
+> minutes and decides whether the Wi-Fi path is real or a dead end.
+
 ### Budget
 
 At ~1.6 W with the camera awake for the whole session (see the sizing in
