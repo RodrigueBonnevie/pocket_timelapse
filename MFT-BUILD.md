@@ -11,14 +11,22 @@ costs €150 second-hand.
 
 ## Why, in three measured numbers
 
-| | Arducam B0587 (measured) | MFT body |
-|---|---|---|
-| Usable exposure range | **8.27 stops** against a sunset's 13.01 | **~17 stops** |
-| Delivered dynamic range | **8.9 stops**, 31 % of a frame in 4 code values | **12-bit raw** |
-| Sensor area | 33.6 mm² | **224.9 mm² — +2.74 stops** |
+An **Olympus OM-D E-M10 Mark II** was acquired for almost nothing on 2026-10-17 and is now the body.
+Against the camera Phase 0 measured:
 
-The first two are why the UVC path closed — see the verdict in [UVC-BUILD.md](UVC-BUILD.md). The
-third is a bonus.
+| | Arducam B0587 (measured) | **E-M10 Mark II** |
+|---|---|---|
+| Usable exposure range | **8.27 stops** against a sunset's 13.01 | **60 s – 1/16000 ≈ 19.9 stops** |
+| Dynamic range | **8.9 stops delivered**, 31 % of a frame in 4 code values | **12.5 EV measured by DxO**, 12-bit raw |
+| Sensor area | 33.6 mm² | **224.9 mm² — +2.74 stops** |
+| Resolution | 3840×2160 | 4608×3456 → **4608×2592 at 16:9**, above 4K with crop room |
+
+**It clears the sunset on every axis the UVC build failed.** 19.9 stops against a scene that measured
+13.01; 12.5 EV of dynamic range against the 8.9 that produced 31 % of a frame in four code values.
+
+> The two dynamic-range figures are measured differently — DxO works from raw before demosaic, while
+> the 8.9 was measured on what the Arducam actually writes to the card. That is the comparison that
+> matters: 8.9 stops is what landed on the SD card, and 12.5 is what lands in an ORF.
 
 ---
 
@@ -26,6 +34,11 @@ third is a bonus.
 
 **The pivot rests on one hypothesis: that 12- or 14-bit raw from a large sensor actually fixes the
 sunset.** Test that before building anything, using the Canon EOS 450D already owned.
+
+> **Updated 2026-10-17.** With an E-M10 Mark II in hand, 0a should be shot on **that** body rather
+> than the 450D. It is the actual sensor class the build will use, so the result is the answer
+> rather than a proxy for it. The 450D stays useful for 0b, where a spare body is worth having
+> before power-cycling the good one — and its result there already stands.
 
 ### 0a — does raw actually solve it? (no hardware, this week)
 
@@ -84,17 +97,41 @@ sessions on it** — 8,640 actuations is a session), power figures, and physical
 
 ---
 
-## The body
+## The body — Olympus OM-D E-M10 Mark II (owned)
 
-| Body | Sensor | E-shutter | Intervalometer | Coupler | Used |
-|---|---|---|---|---|---|
-| **Panasonic GX7** | MFT, 16 MP | **yes** | yes | DMW-DCC11 | **~€150** |
-| Panasonic G7 | MFT, 16 MP | yes | yes | DMW-DCC8 | ~€180 |
-| Panasonic GX85 | MFT, 16 MP | yes | yes | DMW-DCC11 | ~€250 |
+| | |
+|---|---|
+| Sensor | 16.1 MP MFT, 4608×3456 |
+| Raw | **12-bit ORF**, DxO dynamic range **12.5 EV** |
+| Shutter | mechanical 60 s – 1/4000, **electronic to 1/16000, silent** |
+| Interval shooting | built in, 1 s to 24 h, **1–999 frames**, with a start delay |
+| Battery | BLS-50, 1210 mAh at 7.2 V = 8.7 Wh |
+| Extras | built-in Wi-Fi, in-body stabilisation |
 
-**GX7 is the value pick.** The electronic shutter is the decisive feature: 8,640 actuations a session
-against a 100,000 rating makes a mechanical shutter a consumable, and an electronic one makes the
-number meaningless. 16 MP at 4592×3448 crops to 4592×2583 — above 4K with room to recompose.
+The **electronic shutter** is what matters most: 8,640 actuations a session against a ~100,000
+rating makes a mechanical shutter a consumable, and an electronic one makes the number meaningless.
+
+Alternatives, if this body disappoints: Panasonic **GX7** (~€150), **G7** (~€180), **GX85** (~€250)
+— same sensor class, same electronic shutter, and a **2.5 mm remote jack**, which is simpler to
+trigger than Olympus's connector.
+
+### Two Olympus quirks that shape the design
+
+**Interval shooting caps at 999 frames.** The measured sunset was **3,073 frames at 2 s**, so the
+built-in intervalometer cannot shoot one at that interval — 999 frames is 33 minutes. It would reach
+100 minutes at a 6 s interval. **This is not a new constraint**, since external triggering was
+already required (the intervalometer almost certainly cannot resume after a power cycle), but it
+removes the fallback of letting the camera run itself.
+
+**There is no 2.5 mm remote jack.** Olympus wires the shutter to its proprietary multi-connector and
+sells the **RM-UC1** cable for it. Published sources conflict on whether that port is "the USB
+connector" or a separate multi-connector, and no pin-by-pin schematic surfaced — so **do not wire
+anything from a guessed pinout.**
+
+> **The clean way round it: gut a third-party RM-UC1 clone (~€10).** The cable already solves the
+> connector; inside it is a two-stage switch — half-press and full-press, exactly the S1/S2 the
+> design needs. Solder the optocouplers across those contacts and the pinout never has to be known.
+> It also sidesteps the risk of putting a transistor across a pin that turns out to carry USB data.
 
 ---
 
@@ -143,15 +180,15 @@ is dead precisely when it must fire. This is the single most common failure in t
 
 ### The shutter
 
-The 2.5 mm TRS remote jack, on both Canon E3 and Panasonic:
+**On Canon and Panasonic** this is a 2.5 mm TRS jack: sleeve is ground, ring is **S1 (half press)**,
+tip is **S2 (full press)**.
 
-| Contact | Function |
-|---|---|
-| Sleeve | ground |
-| Ring | **S1 — half press**: wake, meter, autofocus |
-| Tip | **S2 — full press**: shutter |
+**On the Olympus there is no jack** — the shutter is wired to the proprietary multi-connector. So
+the interface becomes **a gutted RM-UC1 clone**: the cable provides the connector and already
+contains a two-stage switch, and the optocouplers go across its contacts. Identify them by
+continuity with a multimeter, half-press and full-press, rather than from any published pinout.
 
-Two optocouplers, one per contact, driven from MCU GPIOs. Sequence per frame:
+Two optocouplers, one per stage, driven from MCU GPIOs. Sequence per frame:
 
 ```
   assert S1        -> wake and meter
@@ -195,20 +232,20 @@ The MCU adds ~0.15 W while running and microamps between sessions — negligible
 
 | # | Part | Role | ≈ EUR |
 |---|---|---|---|
-| 1 | Panasonic GX7, used | body | 150 |
+| 1 | **Olympus OM-D E-M10 Mark II** | body | **owned** |
 | 2 | 7artisans / Meike 12 mm f/2.8 MFT | manual aperture, cannot flicker | 150 |
-| 3 | DMW-DCC11 DC coupler | external power | 20 |
+| 3 | **BLS-50 "full decoded" DC coupler** | external power — decoded matters, see risks | 20 |
 | 4 | Adjustable boost to 7.4 V | from the pack | 15 |
 | 5 | 2 × 18650 + sled | ~25 Wh | 20 |
 | 6 | DS3231 + AO3401A P-FET + passives | scheduled wake, switched rail | 12 |
 | 7 | ESP32-C3 | interval timing, trigger, config AP | 8 |
-| 8 | 2 × optocoupler + 2.5 mm lead | shutter and half-press | 6 |
+| 8 | 2 × optocoupler + **RM-UC1 clone to gut** | shutter and half-press | 16 |
 | 9 | Bay charger | charge outside the box | 25 |
 | 10 | 52 mm filter as the window | optical window | 20 |
 | 11 | IP65 case ≈ 180 × 130 × 110 mm | enclosure | 25 |
 | 12 | Vent plug, desiccant, O-rings, 1/4″ inserts | sealing and mount | 25 |
-| | | **total** | **≈ 476** |
-| | | *excluding body and lens* | **≈ 176** |
+| | | **total, body already owned** | **≈ 336** |
+| | | *excluding the lens too* | **≈ 186** |
 
 Storage is the camera's own SD card. No microSD on the host, no fuel gauge, no storage code.
 
@@ -245,7 +282,10 @@ applied across the sequence.
 | Heat in a sealed box | Far less than a mirrorless shooting video, but still untested. Shade, light-coloured case, avoid midday |
 | Condensation on a large air volume | Desiccant plus a PTFE vent plug, as in the other builds |
 | Theft — the box now contains a camera | A €150 body is the point. Do not put anything you would miss in it |
-| Panasonic intervalometer will not resume after a power cycle | Assumed true; the external trigger exists for this reason |
+| In-camera intervalometer will not resume after a power cycle | Assumed true; the external trigger exists for this reason |
+| **Olympus interval shooting caps at 999 frames** | 33 min at 2 s, 100 min at 6 s. External triggering removes the limit entirely |
+| **Camera rejects an undecoded dummy battery** | Buy a **"full decoded"** BLS-50 coupler — Olympus bodies can check battery authentication |
+| Guessing the Olympus connector pinout | **Do not.** Gut an RM-UC1 clone and find the switch contacts by continuity |
 | DS3231 `BBSQW` unset, alarm never fires | Explicit test: set an alarm, pull Vcc, confirm `INT` goes low on backup |
 
 ---
@@ -255,8 +295,9 @@ applied across the sequence.
 1. **0a — the sunset on the 450D.** Raw, Av, Auto ISO. Grade it. Compare against the Arducam
    session. *This gates everything.*
 2. **0b — the appliance tests.** Battery yank, then coupler, then optocoupler.
-3. Buy the GX7 and the 12 mm. Repeat 0b on it, and confirm the electronic shutter and the
-   intervalometer behaviour after a power cycle.
+3. Buy the 12 mm and a **"full decoded" BLS-50 coupler**. Repeat 0b on the E-M10 II, and confirm
+   the electronic shutter works under external triggering and what the intervalometer does after a
+   power cycle.
 4. Breadboard the DS3231 latch. Verify `BBSQW` and a scheduled wake.
 5. ESP32 firmware: schedule, interval, trigger.
 6. Enclosure, window, an unattended overnight run in real weather.
