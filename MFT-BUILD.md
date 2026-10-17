@@ -267,6 +267,51 @@ functions, and none of this is verified on this body yet.
 > exposes and whether shutter, ISO and release are among them. It settles the question in ten
 > minutes and decides whether the Wi-Fi path is real or a dead end.
 
+### Settings and the intervalometer are independent
+
+Worth stating plainly because it is easy to conflate: **the 999-frame limit belongs only to the
+camera's own interval-shooting function.** Setting ISO, shutter, aperture or mode — over Wi-Fi, over
+USB or in the menu — does not involve it. External triggering means no intervalometer at all, and
+therefore no frame limit.
+
+### Wi-Fi is a bench tool, not a box feature
+
+The camera's Wi-Fi runs an access point, which is power-hungry at both ends, and **the ESP32 cannot
+switch it on**: you cannot enable a radio over that same radio. It is enabled at the camera. So
+Wi-Fi is something used while standing next to an open box, never something the sealed box toggles.
+
+*Possible exception worth checking:* if a Wi-Fi-enable property is exposed over USB, then `gphoto2`
+could turn the radio on. Check for it, but do not design around it.
+
+### Configuring a camera with no screen
+
+**This body's rear LCD is dead**, so the usual answer — navigate the menu — is not available. Three
+routes, in order of reliability:
+
+| Route | Cost | Verdict |
+|---|---|---|
+| **USB + `gphoto2`** | ~€10 for the proprietary cable | **The reliable one.** Reads and sets every exposed property from a laptop, no display involved |
+| HDMI to a monitor | ~€10 | Should work — the body has micro-HDMI — but unconfirmed for this model |
+| The EVF | free | **Test first.** Forum reports say Olympus menus do *not* appear in the EVF, only live view. Anecdotal, five years old, and two minutes to disprove |
+
+**So the proprietary USB cable is now the most valuable small purchase**, ahead of where it sat
+before: it is the configuration path, not merely a `gphoto2` convenience.
+
+### Why the box never needs opening anyway
+
+**Camera settings persist across power cycles** — they live in NVRAM, so cutting the rail does not
+disturb them. Configure once on the bench, close the box, and aperture priority, the Auto ISO
+ceiling, the slowest-shutter limit, manual focus, raw and the electronic shutter all survive
+indefinitely.
+
+What *does* change between shoots — interval, duration, start time — belongs to the ESP32, and that
+is configured over **its** access point from a phone, which the box can switch on and off because it
+owns the radio.
+
+> **The dead LCD is close to irrelevant here, and arguably helps.** A screen inside a sealed box is
+> a display nobody can see burning power you brought up a hill. It would have been switched off
+> regardless.
+
 ### Budget
 
 At ~1.6 W with the camera awake for the whole session (see the sizing in
@@ -294,11 +339,12 @@ The MCU adds ~0.15 W while running and microamps between sessions — negligible
 | 6 | DS3231 + AO3401A P-FET + passives | scheduled wake, switched rail | 12 |
 | 7 | ESP32-C3 | interval timing, trigger, config AP | 8 |
 | 8 | 2 × optocoupler + **RM-UC1 clone to gut** | shutter and half-press | 16 |
+| 8b | **Proprietary Olympus USB cable** | the configuration path — this body has no working screen | 10 |
 | 9 | Bay charger | charge outside the box | 25 |
 | 10 | 52 mm filter as the window | optical window | 20 |
 | 11 | IP65 case ≈ 180 × 130 × 110 mm | enclosure | 25 |
 | 12 | Vent plug, desiccant, O-rings, 1/4″ inserts | sealing and mount | 25 |
-| | | **total, body already owned** | **≈ 336** |
+| | | **total, body already owned** | **≈ 346** |
 | | | *excluding the lens too* | **≈ 186** |
 
 Storage is the camera's own SD card. No microSD on the host, no fuel gauge, no storage code.
@@ -340,6 +386,8 @@ applied across the sequence.
 | **Olympus interval shooting caps at 999 frames** | 33 min at 2 s, 100 min at 6 s. External triggering removes the limit entirely |
 | **Camera rejects an undecoded dummy battery** | Buy a **"full decoded"** BLS-50 coupler — Olympus bodies can check battery authentication |
 | Guessing the Olympus connector pinout | **Do not.** Gut an RM-UC1 clone and find the switch contacts by continuity |
+| **Rear LCD is dead — no way to configure** | Configure over USB with `gphoto2`; settings persist in NVRAM across power cycles, so it is a one-time bench job. Test the EVF first in case menus appear there |
+| Camera Wi-Fi cannot be enabled remotely | Accepted: Wi-Fi is a bench tool. Field-changeable settings live on the ESP32, which owns its own radio |
 | DS3231 `BBSQW` unset, alarm never fires | Explicit test: set an alarm, pull Vcc, confirm `INT` goes low on backup |
 
 ---
